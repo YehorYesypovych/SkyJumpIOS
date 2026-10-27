@@ -14,8 +14,9 @@ struct AppDependencies {
             ? RandomLevelProvider()
             : DemoLevelProvider()
 
+        // Журнал подій додатково дублюється в консоль Xcode
         return AppDependencies(levelProvider: levelProvider,
-                               simulator: GameSimulationService(),
+                               simulator: GameSimulationService(observers: [ConsoleEventLogger()]),
                                scoreStore: UserDefaultsScoreStore(defaults: .standard))
     }
 
