@@ -9,9 +9,11 @@ import SwiftUI
 
 @main
 struct SkyJumpApp: App {
+    private let dependencies = AppDependencies.live()
+
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            DemoView(viewModel: dependencies.makeDemoViewModel())
         }
     }
 }

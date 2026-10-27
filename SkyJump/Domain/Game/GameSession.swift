@@ -68,21 +68,18 @@ final class GameSession {
         addLog("Симуляцію завершено")
     }
 
-    func summary() -> String {
-        let status = player.isAlive ? "у грі" : "впав"
-        let topPlatformInfo = highestPlatform.map { "\(Int($0.position.y))" } ?? "немає"
-        let typesLeft = Dictionary(grouping: platforms, by: { $0.type.title })
-            .map { "\($0.key): \($0.value.count)" }
-            .sorted()
-            .joined(separator: ", ")
+    /// Дані підсумку без форматування (текст формує Presentation).
+    func makeSummary() -> GameSummary {
+        let platformsLeft = Dictionary(grouping: platforms, by: { $0.type })
+            .mapValues { $0.count }
 
-        return """
-        Гравець: \(player.name) (\(status))
-        Рахунок (макс. висота): \(score)
-        Стрибків: \(player.jumpsCount), зламано платформ: \(brokenPlatformsCount)
-        Найвища платформа: \(topPlatformInfo)
-        Залишилось платформ: \(typesLeft.isEmpty ? "немає" : typesLeft)
-        """
+        return GameSummary(playerName: player.name,
+                           isAlive: player.isAlive,
+                           score: score,
+                           jumpsCount: player.jumpsCount,
+                           brokenPlatformsCount: brokenPlatformsCount,
+                           highestPlatformY: highestPlatform?.position.y,
+                           platformsLeft: platformsLeft)
     }
 
     // MARK: - Приватна логіка
