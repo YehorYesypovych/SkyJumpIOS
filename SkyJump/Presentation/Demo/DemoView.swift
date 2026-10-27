@@ -43,6 +43,10 @@ struct DemoView: View {
     }
 }
 
-#Preview {
-    DemoView(viewModel: AppDependencies.live().makeDemoViewModel())
+#Preview("Стаби") {
+    DemoView(viewModel: AppDependencies.preview().makeDemoViewModel())
+}
+
+#Preview("Справжня симуляція, тестовий рівень") {
+    DemoView(viewModel: AppDependencies.previewWithRealSimulation().makeDemoViewModel())
 }
