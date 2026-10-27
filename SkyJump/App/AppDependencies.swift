@@ -16,7 +16,7 @@ struct AppDependencies {
 
         return AppDependencies(levelProvider: levelProvider,
                                simulator: GameSimulationService(),
-                               scoreStore: InMemoryScoreStore())
+                               scoreStore: UserDefaultsScoreStore(defaults: .standard))
     }
 
     func makeDemoViewModel() -> DemoViewModel {
