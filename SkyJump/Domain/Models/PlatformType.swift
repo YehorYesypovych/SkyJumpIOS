@@ -1,24 +1,12 @@
 import Foundation
 
-/// Тип платформи визначає, що відбувається, коли гравець на неї приземляється.
+/// Тип платформи. Що відбувається при приземленні, визначає LandingStrategy
+/// для цього типу (див. LandingStrategies).
 enum PlatformType: String, CaseIterable {
     case normal
     case moving
     case breakable
     case spring
-
-    /// Швидкість стрибка з цієї платформи.
-    /// Optional: у ламкої платформи стрибка немає — вона ламається (nil).
-    var jumpVelocity: Double? {
-        switch self {
-        case .normal, .moving:
-            return GameConfig.jumpVelocity
-        case .spring:
-            return GameConfig.jumpVelocity * GameConfig.springMultiplier
-        case .breakable:
-            return nil
-        }
-    }
 
     var title: String {
         switch self {

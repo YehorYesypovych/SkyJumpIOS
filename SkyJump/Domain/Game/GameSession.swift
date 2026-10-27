@@ -8,6 +8,7 @@ final class GameSession {
     private(set) var brokenPlatformsCount = 0
     private(set) var elapsedTime: Double = 0
     private(set) var log: [String] = []
+    private let landingStrategies: [PlatformType: LandingStrategy]
 
     var score: Int { Int(maxHeight) }
 
@@ -16,8 +17,10 @@ final class GameSession {
         platforms.max { $0.position.y < $1.position.y }
     }
 
-    init(playerName: String, platforms: [Platform]) {
+    init(playerName: String, platforms: [Platform],
+         landingStrategies: [PlatformType: LandingStrategy] = LandingStrategies.standard) {
         self.platforms = platforms
+        self.landingStrategies = landingStrategies
 
         // Безпечне розгортання optional: ставимо гравця на першу платформу, якщо вона є
         let start: Vector2
@@ -98,11 +101,14 @@ final class GameSession {
         let platform = platforms[index]
         player.position.y = platform.position.y
 
-        if let jumpVelocity = platform.type.jumpVelocity {
-            player.jump(velocity: jumpVelocity)
+        // Тип без стратегії поводиться як звичайна платформа
+        let strategy = landingStrategies[platform.type]
+            ?? BounceLanding(velocity: GameConfig.jumpVelocity)
+
+        switch strategy.land(player: player, on: &platforms[index]) {
+        case .jumped:
             addLog("Стрибок з платформи #\(platform.id) (\(platform.type.title)) на висоті \(Int(platform.position.y))")
-        } else {
-            platforms[index].breakPlatform()
+        case .broke:
             brokenPlatformsCount += 1
             addLog("Платформа #\(platform.id) зламалась, гравець падає далі")
         }

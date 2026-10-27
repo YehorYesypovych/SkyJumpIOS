@@ -33,7 +33,7 @@ struct BreakLanding: LandingStrategy {
 
 /// Набори стратегій для типів платформ.
 enum LandingStrategies {
-    /// Стандартні правила гри — ті самі числа, що були в PlatformType.jumpVelocity.
+    /// Стандартні правила гри: звичайний стрибок і посилений стрибок з пружини.
     static var standard: [PlatformType: LandingStrategy] {
         let jump = BounceLanding(velocity: GameConfig.jumpVelocity)
         return [
