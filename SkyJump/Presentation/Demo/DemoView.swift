@@ -16,6 +16,16 @@ struct DemoView: View {
                 }
                 .buttonStyle(.borderedProminent)
 
+                HStack {
+                    Text("Рекорд: \(viewModel.bestScore)")
+                        .font(.headline)
+                    if viewModel.isNewRecord {
+                        Text("Новий рекорд!")
+                            .font(.subheadline.bold())
+                            .foregroundStyle(.green)
+                    }
+                }
+
                 if let summary = viewModel.summaryText {
                     Text(summary)
                         .font(.callout)
@@ -33,6 +43,10 @@ struct DemoView: View {
     }
 }
 
-#Preview {
-    DemoView(viewModel: AppDependencies.live().makeDemoViewModel())
+#Preview("Стаби") {
+    DemoView(viewModel: AppDependencies.preview().makeDemoViewModel())
+}
+
+#Preview("Справжня симуляція, тестовий рівень") {
+    DemoView(viewModel: AppDependencies.previewWithRealSimulation().makeDemoViewModel())
 }

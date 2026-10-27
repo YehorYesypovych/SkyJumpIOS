@@ -8,10 +8,15 @@ struct AppDependencies {
     let scoreStore: any ScoreStoring
 
     /// Залежності для реального запуску застосунку.
-    static func live() -> AppDependencies {
-        AppDependencies(levelProvider: DemoLevelProvider(),
-                        simulator: GameSimulationService(),
-                        scoreStore: InMemoryScoreStore())
+    /// Аргумент запуску `-randomLevel` (Edit Scheme → Run → Arguments) вмикає випадковий рівень.
+    static func live(arguments: [String] = ProcessInfo.processInfo.arguments) -> AppDependencies {
+        let levelProvider: any LevelProviding = arguments.contains("-randomLevel")
+            ? RandomLevelProvider()
+            : DemoLevelProvider()
+
+        return AppDependencies(levelProvider: levelProvider,
+                               simulator: GameSimulationService(),
+                               scoreStore: UserDefaultsScoreStore(defaults: .standard))
     }
 
     func makeDemoViewModel() -> DemoViewModel {
