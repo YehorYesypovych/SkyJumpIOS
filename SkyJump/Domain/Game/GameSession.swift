@@ -1,13 +1,16 @@
 import Foundation
 
 /// Одна ігрова сесія: гравець + колекція платформ + рахунок.
+/// Subject для Observer: про все, що відбувається, повідомляє спостерігачам через GameEvent.
 final class GameSession {
     let player: Player
     private(set) var platforms: [Platform]
     private(set) var maxHeight: Double = 0
     private(set) var brokenPlatformsCount = 0
     private(set) var elapsedTime: Double = 0
-    private(set) var log: [String] = []
+    private let rules: GameRules
+    private let landingStrategies: [PlatformType: LandingStrategy]
+    private var observers: [WeakObserver] = []
 
     var score: Int { Int(maxHeight) }
 
@@ -16,8 +19,15 @@ final class GameSession {
         platforms.max { $0.position.y < $1.position.y }
     }
 
-    init(playerName: String, platforms: [Platform]) {
+    /// landingStrategies: nil — стандартний набір за правилами rules.
+    init(playerName: String, platforms: [Platform],
+         rules: GameRules = .standard,
+         landingStrategies: [PlatformType: LandingStrategy]? = nil,
+         observers: [GameEventObserver] = []) {
         self.platforms = platforms
+        self.rules = rules
+        self.landingStrategies = landingStrategies ?? LandingStrategies.standard(rules: rules)
+        self.observers = observers.map { WeakObserver($0) }
 
         // Безпечне розгортання optional: ставимо гравця на першу платформу, якщо вона є
         let start: Vector2
@@ -27,8 +37,14 @@ final class GameSession {
         } else {
             start = Vector2(x: GameConfig.worldWidth / 2, y: 0)
         }
-        self.player = Player(name: playerName, startPosition: start)
-        addLog("Старт: \(playerName), платформ на рівні: \(platforms.count)")
+        self.player = Player(name: playerName, startPosition: start, gravity: rules.gravity)
+        emit(.started(playerName: playerName, platformCount: platforms.count))
+    }
+
+    /// Підписує спостерігача на події сесії. Сесія тримає його слабким посиланням:
+    /// жити спостерігачу чи ні, вирішує той, хто його створив.
+    func addObserver(_ observer: GameEventObserver) {
+        observers.append(WeakObserver(observer))
     }
 
     /// Один кадр гри.
@@ -54,9 +70,9 @@ final class GameSession {
         }
         removePlatformsBelowScreen()
 
-        if player.position.y < maxHeight - GameConfig.screenHeight {
+        if player.position.y < maxHeight - rules.screenHeight {
             player.die()
-            addLog("Гравець впав. Гру закінчено")
+            emit(.playerFell)
         }
     }
 
@@ -65,7 +81,7 @@ final class GameSession {
         while elapsedTime < duration && player.isAlive {
             step(deltaTime: deltaTime)
         }
-        addLog("Симуляцію завершено")
+        emit(.finished)
     }
 
     /// Дані підсумку без форматування (текст формує Presentation).
@@ -98,28 +114,43 @@ final class GameSession {
         let platform = platforms[index]
         player.position.y = platform.position.y
 
-        if let jumpVelocity = platform.type.jumpVelocity {
-            player.jump(velocity: jumpVelocity)
-            addLog("Стрибок з платформи #\(platform.id) (\(platform.type.title)) на висоті \(Int(platform.position.y))")
-        } else {
-            platforms[index].breakPlatform()
+        // Тип без стратегії поводиться як звичайна платформа
+        let strategy = landingStrategies[platform.type]
+            ?? BounceLanding(velocity: rules.jumpVelocity)
+
+        switch strategy.land(player: player, on: &platforms[index]) {
+        case .jumped:
+            emit(.jumped(platformID: platform.id, type: platform.type, height: platform.position.y))
+        case .broke:
             brokenPlatformsCount += 1
-            addLog("Платформа #\(platform.id) зламалась, гравець падає далі")
+            emit(.platformBroken(platformID: platform.id))
         }
     }
 
     private func removePlatformsBelowScreen() {
-        let bottomEdge = maxHeight - GameConfig.screenHeight
+        let bottomEdge = maxHeight - rules.screenHeight
         let countBefore = platforms.count
         platforms.removeAll { $0.position.y < bottomEdge }
 
         let removed = countBefore - platforms.count
         if removed > 0 {
-            addLog("Прибрано платформ нижче екрана: \(removed)")
+            emit(.platformsRemoved(count: removed))
         }
     }
 
-    private func addLog(_ message: String) {
-        log.append("[\(String(format: "%5.2f", elapsedTime)) с] \(message)")
+    private func emit(_ event: GameEvent) {
+        observers.removeAll { $0.value == nil }
+        for observer in observers {
+            observer.value?.gameSession(didEmit: event, at: elapsedTime)
+        }
+    }
+}
+
+/// Слабке посилання на спостерігача, щоб сесія не утримувала його в пам'яті.
+private struct WeakObserver {
+    weak var value: GameEventObserver?
+
+    init(_ value: GameEventObserver) {
+        self.value = value
     }
 }
