@@ -3,24 +3,17 @@ import Foundation
 /// Фіксований рівень для демонстрації: результат однаковий при кожному запуску.
 struct DemoLevelProvider: LevelProviding {
     func makeLevel() -> [Platform] {
-        let layout: [(y: Double, x: Double, type: PlatformType)] = [
-            (0, 160, .normal),
-            (120, 140, .normal),
-            (240, 170, .normal),
-            (330, 150, .normal),
-            (360, 160, .breakable),
-            (450, 130, .spring),
-            (850, 160, .normal),
-            (900, 150, .moving),
-            (1000, 140, .normal),
-            (1110, 160, .normal)
-        ]
-
-        return layout.enumerated().map { item in
-            Platform(id: item.offset,
-                     x: item.element.x,
-                     y: item.element.y,
-                     type: item.element.type)
-        }
+        LevelBuilder()
+            .platform(.normal, x: 160, y: 0)
+            .platform(.normal, x: 140, y: 120)
+            .platform(.normal, x: 170, y: 240)
+            .platform(.normal, x: 150, y: 330)
+            .platform(.breakable, x: 160, y: 360)
+            .platform(.spring, x: 130, y: 450)
+            .platform(.normal, x: 160, y: 850)
+            .platform(.moving, x: 150, y: 900)
+            .platform(.normal, x: 140, y: 1000)
+            .platform(.normal, x: 160, y: 1110)
+            .build()
     }
 }
