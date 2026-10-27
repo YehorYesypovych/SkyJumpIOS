@@ -9,18 +9,20 @@ final class Player: GameObject {
     private(set) var velocity: Vector2 = .zero
     private(set) var isAlive = true
     private(set) var jumpsCount = 0
+    private let gravity: Double
 
     /// Обчислювана властивість
     var isFalling: Bool { velocity.y < 0 }
 
-    init(name: String, startPosition: Vector2) {
+    init(name: String, startPosition: Vector2, gravity: Double = GameRules.standard.gravity) {
         self.name = name
         self.position = startPosition
+        self.gravity = gravity
     }
 
     /// Для класу вимога `mutating` з протоколу реалізується звичайним методом.
     func update(deltaTime: Double) {
-        velocity.y += GameConfig.gravity * deltaTime
+        velocity.y += gravity * deltaTime
         position.x += velocity.x * deltaTime
         position.y += velocity.y * deltaTime
 

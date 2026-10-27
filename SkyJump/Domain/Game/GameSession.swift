@@ -8,6 +8,7 @@ final class GameSession {
     private(set) var maxHeight: Double = 0
     private(set) var brokenPlatformsCount = 0
     private(set) var elapsedTime: Double = 0
+    private let rules: GameRules
     private let landingStrategies: [PlatformType: LandingStrategy]
     private var observers: [WeakObserver] = []
 
@@ -18,11 +19,14 @@ final class GameSession {
         platforms.max { $0.position.y < $1.position.y }
     }
 
+    /// landingStrategies: nil — стандартний набір за правилами rules.
     init(playerName: String, platforms: [Platform],
-         landingStrategies: [PlatformType: LandingStrategy] = LandingStrategies.standard,
+         rules: GameRules = .standard,
+         landingStrategies: [PlatformType: LandingStrategy]? = nil,
          observers: [GameEventObserver] = []) {
         self.platforms = platforms
-        self.landingStrategies = landingStrategies
+        self.rules = rules
+        self.landingStrategies = landingStrategies ?? LandingStrategies.standard(rules: rules)
         self.observers = observers.map { WeakObserver($0) }
 
         // Безпечне розгортання optional: ставимо гравця на першу платформу, якщо вона є
@@ -33,7 +37,7 @@ final class GameSession {
         } else {
             start = Vector2(x: GameConfig.worldWidth / 2, y: 0)
         }
-        self.player = Player(name: playerName, startPosition: start)
+        self.player = Player(name: playerName, startPosition: start, gravity: rules.gravity)
         emit(.started(playerName: playerName, platformCount: platforms.count))
     }
 
@@ -66,7 +70,7 @@ final class GameSession {
         }
         removePlatformsBelowScreen()
 
-        if player.position.y < maxHeight - GameConfig.screenHeight {
+        if player.position.y < maxHeight - rules.screenHeight {
             player.die()
             emit(.playerFell)
         }
@@ -112,7 +116,7 @@ final class GameSession {
 
         // Тип без стратегії поводиться як звичайна платформа
         let strategy = landingStrategies[platform.type]
-            ?? BounceLanding(velocity: GameConfig.jumpVelocity)
+            ?? BounceLanding(velocity: rules.jumpVelocity)
 
         switch strategy.land(player: player, on: &platforms[index]) {
         case .jumped:
@@ -124,7 +128,7 @@ final class GameSession {
     }
 
     private func removePlatformsBelowScreen() {
-        let bottomEdge = maxHeight - GameConfig.screenHeight
+        let bottomEdge = maxHeight - rules.screenHeight
         let countBefore = platforms.count
         platforms.removeAll { $0.position.y < bottomEdge }
 
