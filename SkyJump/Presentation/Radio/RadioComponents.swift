@@ -103,11 +103,10 @@ struct MiniPlayerBar: View {
                     .foregroundStyle(.tertiary)
             }
         }
-        .foregroundStyle(.white)
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).stroke(Theme.cardStroke, lineWidth: 1))
+        .cardStyle(cornerRadius: 22)
         .padding(.horizontal)
         .padding(.bottom, 6)
     }

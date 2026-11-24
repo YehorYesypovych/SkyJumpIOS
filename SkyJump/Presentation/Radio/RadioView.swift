@@ -3,6 +3,7 @@ import SwiftUI
 /// Екран «Радіо»: станції synthwave / retrowave / 80s з відкритого каталогу, фільтр за жанром.
 struct RadioView: View {
     @State private var viewModel: RadioViewModel
+    @Environment(\.worldTheme) private var theme
 
     init(viewModel: RadioViewModel) {
         _viewModel = State(initialValue: viewModel)
@@ -68,9 +69,9 @@ struct RadioView: View {
                 .foregroundStyle(isSelected ? .white : .primary)
                 .background {
                     if isSelected {
-                        Capsule().fill(Theme.playButton)
+                        Capsule().fill(theme.palette.buttonGradient)
                     } else {
-                        Capsule().fill(Theme.card)
+                        Capsule().fill(theme.palette.card)
                     }
                 }
         }
@@ -138,7 +139,7 @@ private struct StationRow: View {
                 } else {
                     Image(systemName: "play.circle.fill")
                         .font(.title2)
-                        .foregroundStyle(Theme.accent)
+                        .foregroundStyle(.tint)
                 }
             }
             .frame(width: 28)

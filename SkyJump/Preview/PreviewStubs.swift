@@ -43,7 +43,8 @@ extension AppDependencies {
                         scoreStore: InMemoryScoreStore(bestScore: 500),
                         library: LevelLibrary(),
                         radio: .preview(),
-                        radioProvider: StubRadioProvider())
+                        radioProvider: StubRadioProvider(),
+                        cosmetics: CosmeticsSettings(defaults: UserDefaults(suiteName: "preview.cosmetics") ?? .standard))
     }
 
     /// Справжня симуляція на тестовому рівні — замінено лише джерело рівня і сховище.
@@ -53,7 +54,8 @@ extension AppDependencies {
                         scoreStore: InMemoryScoreStore(),
                         library: LevelLibrary(),
                         radio: .preview(),
-                        radioProvider: StubRadioProvider())
+                        radioProvider: StubRadioProvider(),
+                        cosmetics: CosmeticsSettings(defaults: UserDefaults(suiteName: "preview.cosmetics") ?? .standard))
     }
 }
 

@@ -11,6 +11,8 @@ struct AppDependencies {
     /// Радіо — одне на весь застосунок; каталог станцій — через протокол.
     let radio: RadioPlayer
     let radioProvider: any RadioStationProviding
+    /// Тема, скін і слід гравця.
+    let cosmetics: CosmeticsSettings
 
     /// Залежності для реального запуску застосунку.
     /// Аргумент запуску `-randomLevel` (Edit Scheme → Run → Arguments) вмикає випадковий рівень.
@@ -25,7 +27,8 @@ struct AppDependencies {
                                scoreStore: UserDefaultsScoreStore(defaults: .standard),
                                library: LevelLibrary(),
                                radio: RadioPlayer(streamer: AVPlayerStreamer()),
-                               radioProvider: RadioBrowserClient())
+                               radioProvider: RadioBrowserClient(),
+                               cosmetics: CosmeticsSettings())
     }
 
     func makeDemoViewModel() -> DemoViewModel {

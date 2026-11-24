@@ -20,7 +20,8 @@ struct SkyJumpApp: App {
     var body: some Scene {
         WindowGroup {
             RootView(router: router,
-                     factory: ScreenFactory(dependencies: dependencies, navigator: router))
+                     factory: ScreenFactory(dependencies: dependencies, navigator: router),
+                     cosmetics: dependencies.cosmetics)
         }
     }
 }

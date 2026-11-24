@@ -55,18 +55,30 @@ enum Theme {
     }
 }
 
-/// Кнопка з неоновим градієнтом на всю ширину — головна дія екрана.
+/// Кнопка з градієнтом теми на всю ширину — головна дія екрана.
 struct GradientButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
-        configuration.label
+        GradientButtonBody(label: configuration.label, isPressed: configuration.isPressed)
+    }
+}
+
+/// Тіло кнопки окремим виглядом, щоб читати тему з оточення.
+private struct GradientButtonBody<Label: View>: View {
+    let label: Label
+    let isPressed: Bool
+    @Environment(\.worldTheme) private var theme
+
+    var body: some View {
+        let palette = theme.palette
+        label
             .font(.headline)
             .foregroundStyle(.white)
             .frame(maxWidth: .infinity, minHeight: 52)
-            .background(Theme.playButton, in: Capsule())
-            .shadow(color: Theme.neonPink.opacity(0.35), radius: 10, y: 4)
-            .scaleEffect(configuration.isPressed ? 0.97 : 1)
-            .opacity(configuration.isPressed ? 0.9 : 1)
-            .animation(.snappy(duration: 0.15), value: configuration.isPressed)
+            .background(palette.buttonGradient, in: Capsule())
+            .shadow(color: palette.accent.opacity(0.35), radius: 10, y: 4)
+            .scaleEffect(isPressed ? 0.97 : 1)
+            .opacity(isPressed ? 0.9 : 1)
+            .animation(.snappy(duration: 0.15), value: isPressed)
     }
 }
 

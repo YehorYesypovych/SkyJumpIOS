@@ -4,6 +4,8 @@ import SwiftUI
 struct RootView: View {
     @Bindable var router: AppRouter
     let factory: ScreenFactory
+    /// Обрана тема, скін і слід — тема застосовується до всіх екранів.
+    let cosmetics: CosmeticsSettings
 
     var body: some View {
         NavigationStack(path: $router.path) {
@@ -14,10 +16,9 @@ struct RootView: View {
         }
         .sheet(item: $router.sheet) { sheet in
             factory.makeView(for: sheet)
-                .tint(Theme.accent)
+                .worldTheme(cosmetics.theme)
         }
-        .tint(Theme.accent)
-        // уся гра в темному «нічному» стилі, системні елементи підлаштовуються під нього
-        .preferredColorScheme(.dark)
+        // меню, гра й системні елементи підлаштовуються під обрану тему
+        .worldTheme(cosmetics.theme)
     }
 }
