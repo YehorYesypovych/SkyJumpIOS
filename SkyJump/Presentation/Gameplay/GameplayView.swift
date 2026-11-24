@@ -5,6 +5,7 @@ struct GameplayView: View {
     @State private var viewModel: GameplayViewModel
     @State private var clock = FrameClock()
     @State private var hasTouched = false
+    @State private var pressedSide = 0          // -1 — ліва половина, 1 — права, 0 — ніхто не тримає
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -28,6 +29,8 @@ struct GameplayView: View {
         }
         .navigationTitle(viewModel.title)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(.hidden, for: .navigationBar)
+        .toolbarColorScheme(.dark, for: .navigationBar)
         .toolbar {
             if viewModel.hasStarted && viewModel.outcome == .playing {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -70,9 +73,12 @@ struct GameplayView: View {
                         }
                     }
                 }
-                .background(GameRenderer.sky)
+                .ignoresSafeArea()
                 .contentShape(Rectangle())
                 .gesture(controlGesture(width: proxy.size.width))
+
+                touchZones
+                    .allowsHitTesting(false)
 
                 hud
                     .allowsHitTesting(false)
@@ -98,6 +104,7 @@ struct GameplayView: View {
             }
             .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: viewModel.outcome)
             .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: viewModel.isPaused)
+            .animation(reduceMotion ? nil : .easeOut(duration: 0.15), value: pressedSide)
         }
     }
 
@@ -105,65 +112,136 @@ struct GameplayView: View {
     private func controlGesture(width: CGFloat) -> some Gesture {
         DragGesture(minimumDistance: 0)
             .onChanged { value in
+                let side = value.location.x < width / 2 ? -1 : 1
                 hasTouched = true
-                viewModel.setInput(value.location.x < width / 2 ? -1 : 1)
+                pressedSide = side
+                viewModel.setInput(Double(side))
             }
             .onEnded { _ in
+                pressedSide = 0
                 viewModel.setInput(0)
             }
     }
 
+    // MARK: - HUD
+
     private var hud: some View {
-        VStack(spacing: 8) {
-            HStack(alignment: .firstTextBaseline) {
+        VStack(spacing: 10) {
+            HStack(alignment: .center) {
                 Text("\(viewModel.frame.score)")
-                    .font(.system(.largeTitle, design: .rounded).bold())
+                    .font(.system(size: 34, weight: .heavy, design: .rounded))
                     .monospacedDigit()
-                Spacer()
-                Text("Рекорд: \(viewModel.bestScore)")
-                    .font(.subheadline.weight(.semibold))
+                    .contentTransition(.numericText(value: Double(viewModel.frame.score)))
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 4)
+                    .background(.ultraThinMaterial, in: Capsule())
+
+                Spacer(minLength: 8)
+
+                Label("\(viewModel.bestScore)", systemImage: "trophy.fill")
+                    .font(.subheadline.weight(.bold))
+                    .monospacedDigit()
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(.ultraThinMaterial, in: Capsule())
+                    .accessibilityLabel("Рекорд рівня \(viewModel.bestScore)")
             }
-            ProgressView(value: viewModel.frame.progress)
-                .tint(.white)
+
+            ProgressBar(value: viewModel.frame.progress)
                 .accessibilityLabel("Прогрес до вершини")
 
-            if !hasTouched && viewModel.outcome == .playing {
-                Text("Утримуйте ліву або праву половину екрана, щоб рухатися")
-                    .font(.footnote.weight(.medium))
-                    .multilineTextAlignment(.center)
-                    .padding(.top, 4)
+            if viewModel.frame.jetpackLeft > 0 {
+                HStack(spacing: 8) {
+                    Text("🚀")
+                    ProgressBar(value: viewModel.frame.jetpackLeft, fill: Theme.neonMint)
+                        .frame(width: 90)
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(.ultraThinMaterial, in: Capsule())
+                .transition(.scale.combined(with: .opacity))
+            }
+
+            if !hasTouched && viewModel.outcome == .playing && !viewModel.isPaused {
+                Sticker(text: "тримай ліво / право", emoji: "👆", color: Theme.electricBlue, angle: -3)
+                    .padding(.top, 24)
+                    .transition(.scale.combined(with: .opacity))
             }
         }
         .foregroundStyle(.white)
-        .shadow(color: .black.opacity(0.35), radius: 2)
-        .padding()
+        .padding(.horizontal)
+        .padding(.top, 4)
+        .animation(reduceMotion ? nil : .spring(duration: 0.35), value: viewModel.frame.jetpackLeft > 0)
+        .animation(reduceMotion ? nil : .spring(duration: 0.35), value: hasTouched)
+    }
+
+    /// Підказка, де тримати: дві половини екрана зі стрілками. Після першого дотику лишається лише
+    /// легке підсвічування сторони, яку тримає гравець.
+    private var touchZones: some View {
+        HStack(spacing: 0) {
+            zone(side: -1, symbol: "chevron.left")
+            zone(side: 1, symbol: "chevron.right")
+        }
+        .ignoresSafeArea()
+    }
+
+    private func zone(side: Int, symbol: String) -> some View {
+        let isPressed = pressedSide == side
+        return ZStack(alignment: .bottom) {
+            LinearGradient(colors: [.clear, .white.opacity(isPressed ? 0.18 : 0)],
+                           startPoint: .top, endPoint: .bottom)
+            if !hasTouched {
+                Image(systemName: symbol)
+                    .font(.system(size: 30, weight: .bold))
+                    .foregroundStyle(.white.opacity(0.7))
+                    .padding(.bottom, 48)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private var pauseOverlay: some View {
         ZStack {
-            Color.black.opacity(0.4)
+            Rectangle()
+                .fill(.ultraThinMaterial)
                 .ignoresSafeArea()
-            VStack(spacing: 16) {
-                Text("Пауза")
-                    .font(.largeTitle.bold())
-                    .foregroundStyle(.white)
+            VStack(spacing: 20) {
+                Sticker(text: "пауза", emoji: "☕️", color: Theme.dusk, angle: -4)
+                    .scaleEffect(1.3)
                 Button {
                     clock.reset()
                     viewModel.resume()
                 } label: {
                     Label("Продовжити", systemImage: "play.fill")
-                        .frame(minWidth: 200)
                 }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
+                .buttonStyle(.gradient)
+                .frame(maxWidth: 280)
 
                 Button("До рівня") {
                     viewModel.backToLevel()
                 }
-                .buttonStyle(.bordered)
-                .tint(.white)
+                .font(.headline)
+            }
+            .padding()
+        }
+    }
+}
+
+/// Тонка смуга прогресу з градієнтом.
+private struct ProgressBar: View {
+    let value: Double
+    var fill: Color?
+
+    var body: some View {
+        GeometryReader { proxy in
+            ZStack(alignment: .leading) {
+                Capsule().fill(.white.opacity(0.25))
+                Capsule()
+                    .fill(fill.map { AnyShapeStyle($0) } ?? AnyShapeStyle(Theme.playButton))
+                    .frame(width: proxy.size.width * min(max(value, 0), 1))
             }
         }
+        .frame(height: 6)
     }
 }
 
@@ -190,11 +268,6 @@ private final class FrameClock {
 private enum GameRenderer {
     static let platformHeight = 14.0
 
-    static let sky = LinearGradient(colors: [Color(red: 0.36, green: 0.67, blue: 0.98),
-                                             Color(red: 0.80, green: 0.92, blue: 1.0)],
-                                    startPoint: .top,
-                                    endPoint: .bottom)
-
     static func draw(_ frame: GameFrame, in context: inout GraphicsContext, size: CGSize) {
         let scale = size.width / GameFrame.worldWidth
 
@@ -202,65 +275,154 @@ private enum GameRenderer {
             size.height - CGFloat(worldY - frame.cameraBottom) * scale
         }
 
-        for platform in frame.platforms {
-            let rect = CGRect(x: platform.x * scale,
-                              y: screenY(platform.y),
-                              width: platform.width * scale,
-                              height: platformHeight * scale)
-            guard rect.maxY >= 0, rect.minY <= size.height else { continue }
+        NeonBeachBackground.draw(in: &context, size: size, cameraBottom: frame.cameraBottom, scale: scale)
 
-            let opacity = platform.isBroken ? 0.3 : 1
-            context.fill(Path(roundedRect: rect, cornerRadius: rect.height / 2),
-                         with: .color(color(for: platform.type).opacity(opacity)))
-
-            if platform.type == .spring && !platform.isBroken {
-                let spring = CGRect(x: rect.midX - 9 * scale,
-                                    y: rect.minY - 10 * scale,
-                                    width: 18 * scale,
-                                    height: 10 * scale)
-                context.fill(Path(roundedRect: spring, cornerRadius: 3 * scale), with: .color(.yellow))
-            }
-
-            if platform.type == .breakable && !platform.isBroken {
-                var crack = Path()
-                crack.move(to: CGPoint(x: rect.midX - 6 * scale, y: rect.minY))
-                crack.addLine(to: CGPoint(x: rect.midX, y: rect.midY))
-                crack.addLine(to: CGPoint(x: rect.midX + 5 * scale, y: rect.maxY))
-                context.stroke(crack, with: .color(.black.opacity(0.4)), lineWidth: 1.5)
+        context.drawLayer { layer in
+            layer.addFilter(.shadow(color: .black.opacity(0.28), radius: 4, x: 0, y: 3))
+            for platform in frame.platforms {
+                let rect = CGRect(x: platform.x * scale,
+                                  y: screenY(platform.y),
+                                  width: platform.width * scale,
+                                  height: platformHeight * scale)
+                guard rect.maxY >= -40, rect.minY <= size.height else { continue }
+                drawPlatform(platform, rect: rect, scale: scale, in: &layer)
             }
         }
 
-        drawPlayer(frame, in: &context, scale: scale, feetY: screenY(frame.playerY))
+        for pickup in frame.pickups {
+            let bottom = CGPoint(x: pickup.x * scale, y: screenY(pickup.y))
+            guard bottom.y > -40, bottom.y < size.height + 40 else { continue }
+            drawJetpackPickup(at: bottom, scale: scale, in: &context)
+        }
+
+        // персонаж біля краю видно з обох боків — так само, як він переходить через край світу
+        let playerX = frame.playerX * scale
+        let worldWidth = GameFrame.worldWidth * scale
+        let halfWidth = frame.playerWidth * scale / 2
+        for offset in [-worldWidth, 0, worldWidth] where playerX + offset + halfWidth > 0 && playerX + offset - halfWidth < size.width {
+            drawPlayer(frame, centerX: playerX + offset, feetY: screenY(frame.playerY), scale: scale, in: &context)
+        }
     }
 
-    private static func drawPlayer(_ frame: GameFrame, in context: inout GraphicsContext,
-                                   scale: CGFloat, feetY: CGFloat) {
+    // MARK: Платформи
+
+    private static func drawPlatform(_ platform: GameFrame.PlatformSprite, rect: CGRect,
+                                     scale: CGFloat, in context: inout GraphicsContext) {
+        let color = Theme.color(for: platform.type)
+        let opacity = platform.isBroken ? 0.25 : 1
+        let shape = Path(roundedRect: rect, cornerRadius: rect.height / 2)
+        context.fill(shape, with: .color(color.opacity(opacity)))
+        // тонкий темний контур: платформу видно і на світлому заході сонця
+        context.stroke(shape, with: .color(Theme.night.opacity(0.35 * opacity)), lineWidth: 1.2 * scale)
+
+        // світла смужка зверху — об'єм без зайвих деталей
+        let highlight = CGRect(x: rect.minX + rect.height / 2, y: rect.minY + 2 * scale,
+                               width: max(rect.width - rect.height, 0), height: 2.5 * scale)
+        context.fill(Path(roundedRect: highlight, cornerRadius: 1.25 * scale),
+                     with: .color(.white.opacity(0.55 * opacity)))
+
+        guard !platform.isBroken else { return }
+
+        switch platform.type {
+        case .spring:
+            // пружина-зигзаг і рожева «кнопка» зверху
+            var coil = Path()
+            let baseY = rect.minY
+            let left = rect.midX - 7 * scale
+            coil.move(to: CGPoint(x: left, y: baseY))
+            for step in 1...4 {
+                coil.addLine(to: CGPoint(x: step.isMultiple(of: 2) ? left : left + 14 * scale,
+                                         y: baseY - CGFloat(step) * 3 * scale))
+            }
+            context.stroke(coil, with: .color(.white), lineWidth: 2 * scale)
+            let cap = CGRect(x: rect.midX - 9 * scale, y: baseY - 15 * scale, width: 18 * scale, height: 4 * scale)
+            context.fill(Path(roundedRect: cap, cornerRadius: 2 * scale), with: .color(Theme.neonPink))
+        case .breakable:
+            var crack = Path()
+            crack.move(to: CGPoint(x: rect.midX - 8 * scale, y: rect.minY))
+            crack.addLine(to: CGPoint(x: rect.midX - 1 * scale, y: rect.midY))
+            crack.addLine(to: CGPoint(x: rect.midX + 6 * scale, y: rect.maxY))
+            context.stroke(crack, with: .color(.black.opacity(0.35)), lineWidth: 1.5 * scale)
+        case .moving:
+            for direction in [-1.0, 1.0] {
+                var chevron = Path()
+                let x = rect.midX + CGFloat(direction) * rect.width * 0.32
+                let size = 3.5 * scale
+                chevron.move(to: CGPoint(x: x - CGFloat(direction) * size, y: rect.midY - size))
+                chevron.addLine(to: CGPoint(x: x, y: rect.midY))
+                chevron.addLine(to: CGPoint(x: x - CGFloat(direction) * size, y: rect.midY + size))
+                context.stroke(chevron, with: .color(.white.opacity(0.8)),
+                               style: StrokeStyle(lineWidth: 1.6 * scale, lineCap: .round, lineJoin: .round))
+            }
+        case .normal:
+            break
+        }
+    }
+
+    // MARK: Джетпак
+
+    private static func drawJetpackPickup(at bottom: CGPoint, scale: CGFloat, in context: inout GraphicsContext) {
+        let glow = CGRect(x: bottom.x - 20 * scale, y: bottom.y - 40 * scale, width: 40 * scale, height: 40 * scale)
+        context.fill(Path(ellipseIn: glow), with: .color(Theme.neonMint.opacity(0.35)))
+        context.draw(Text("🚀").font(.system(size: 24 * scale)),
+                     at: CGPoint(x: bottom.x, y: bottom.y - 20 * scale))
+    }
+
+    // MARK: Персонаж
+
+    private static func drawPlayer(_ frame: GameFrame, centerX: CGFloat, feetY: CGFloat,
+                                   scale: CGFloat, in context: inout GraphicsContext) {
         let width = frame.playerWidth * scale
-        let height = width * 1.15
-        let body = CGRect(x: frame.playerX * scale - width / 2, y: feetY - height,
-                          width: width, height: height)
-        context.fill(Path(roundedRect: body, cornerRadius: width * 0.4), with: .color(.orange))
+        let height = width * 1.1
+        let body = CGRect(x: centerX - width / 2, y: feetY - height, width: width, height: height)
+        let hasJetpack = frame.jetpackLeft > 0
 
-        // очі дивляться вниз, коли персонаж падає
-        let eyeSize = width * 0.22
-        let eyeY = body.minY + height * 0.3
-        for offset in [-width * 0.18, width * 0.18] {
-            let eye = CGRect(x: body.midX + offset - eyeSize / 2, y: eyeY,
-                             width: eyeSize, height: eyeSize)
-            context.fill(Path(ellipseIn: eye), with: .color(.white))
-            let pupilShift = (frame.isFalling ? 1 : -1) * eyeSize * 0.18
-            let pupil = eye.insetBy(dx: eyeSize * 0.3, dy: eyeSize * 0.3).offsetBy(dx: 0, dy: pupilShift)
-            context.fill(Path(ellipseIn: pupil), with: .color(.black))
+        if hasJetpack {
+            // рюкзак-джетпак за спиною і полум'я, що «тремтить» від висоти польоту
+            let pack = CGRect(x: body.minX - width * 0.22, y: body.minY + height * 0.25,
+                              width: width * 0.3, height: height * 0.55)
+            context.fill(Path(roundedRect: pack, cornerRadius: width * 0.08), with: .color(Color(white: 0.82)))
+            let flicker = CGFloat(abs(frame.playerY).truncatingRemainder(dividingBy: 12)) / 12
+            var flame = Path()
+            flame.move(to: CGPoint(x: pack.minX + 2, y: pack.maxY))
+            flame.addLine(to: CGPoint(x: pack.midX, y: pack.maxY + height * (0.45 + 0.25 * flicker)))
+            flame.addLine(to: CGPoint(x: pack.maxX - 2, y: pack.maxY))
+            flame.closeSubpath()
+            context.fill(flame, with: .linearGradient(Gradient(colors: [Theme.sunYellow, Theme.sunsetOrange, .clear]),
+                                                      startPoint: CGPoint(x: pack.midX, y: pack.maxY),
+                                                      endPoint: CGPoint(x: pack.midX, y: pack.maxY + height * 0.7)))
         }
-    }
 
-    private static func color(for type: PlatformType) -> Color {
-        switch type {
-        case .normal: return .green
-        case .moving: return .blue
-        case .breakable: return .brown
-        case .spring: return .mint
+        // тіло — м'який «блоб» з градієнтом і темним контуром, щоб не губився на тлі заходу сонця
+        let bodyShape = Path(roundedRect: body, cornerRadius: width * 0.42)
+        context.fill(bodyShape,
+                     with: .linearGradient(Gradient(colors: [Theme.sunYellow, Theme.sunsetOrange]),
+                                           startPoint: CGPoint(x: body.midX, y: body.minY),
+                                           endPoint: CGPoint(x: body.midX, y: body.maxY)))
+        context.stroke(bodyShape, with: .color(Theme.night.opacity(0.85)), lineWidth: 2 * scale)
+
+        // окуляри: дивляться вниз, коли персонаж падає
+        let glassesY = body.minY + height * (frame.isFalling ? 0.38 : 0.28)
+        let lens = width * 0.3
+        let bridge = CGRect(x: body.midX - width * 0.36, y: glassesY + lens * 0.25,
+                            width: width * 0.72, height: lens * 0.18)
+        context.fill(Path(bridge), with: .color(.black))
+        for side in [-1.0, 1.0] {
+            let lensRect = CGRect(x: body.midX + CGFloat(side) * width * 0.2 - lens / 2, y: glassesY,
+                                  width: lens, height: lens * 0.72)
+            context.fill(Path(roundedRect: lensRect, cornerRadius: lens * 0.25), with: .color(.black))
+            let shine = CGRect(x: lensRect.minX + lens * 0.18, y: lensRect.minY + lens * 0.14,
+                               width: lens * 0.3, height: lens * 0.12)
+            context.fill(Path(roundedRect: shine, cornerRadius: lens * 0.06), with: .color(Theme.neonPink.opacity(0.9)))
         }
+
+        // усмішка
+        var smile = Path()
+        smile.move(to: CGPoint(x: body.midX - width * 0.12, y: glassesY + lens * 1.05))
+        smile.addQuadCurve(to: CGPoint(x: body.midX + width * 0.12, y: glassesY + lens * 1.05),
+                           control: CGPoint(x: body.midX, y: glassesY + lens * 1.35))
+        context.stroke(smile, with: .color(.black.opacity(0.75)),
+                       style: StrokeStyle(lineWidth: 1.8 * scale, lineCap: .round))
     }
 }
 
