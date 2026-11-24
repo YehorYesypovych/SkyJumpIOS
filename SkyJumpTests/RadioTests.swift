@@ -157,8 +157,7 @@ struct RadioViewModelTests {
 
         await viewModel.load()
 
-        #expect(viewModel.loadState == .loaded)
-        #expect(viewModel.stations.count == 3)
+        #expect(viewModel.state == .loaded(StubRadioProvider.stations))
         #expect(player.queue.count == 3)
     }
 
@@ -168,7 +167,7 @@ struct RadioViewModelTests {
 
         await viewModel.load()
 
-        guard case .failed(let message) = viewModel.loadState else {
+        guard case .failed(let message) = viewModel.state else {
             Issue.record("Очікувався стан помилки")
             return
         }
@@ -207,7 +206,6 @@ struct RadioViewModelTests {
         let viewModel = RadioViewModel(provider: StubStationsProvider(result: .failure(URLError(.timedOut))),
                                        player: player)
 
-        #expect(viewModel.loadState == .loaded)
-        #expect(viewModel.stations.count == 3)
+        #expect(viewModel.state == .loaded(StubRadioProvider.stations))
     }
 }

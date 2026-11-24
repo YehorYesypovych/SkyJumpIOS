@@ -1,6 +1,7 @@
 import SwiftUI
 
 /// Екран «Радіо»: станції synthwave / retrowave / 80s з відкритого каталогу, фільтр за жанром.
+/// Показує всі стани завантаження: процес, дані, порожньо, помилка з повтором.
 struct RadioView: View {
     @State private var viewModel: RadioViewModel
     @Environment(\.worldTheme) private var theme
@@ -83,30 +84,44 @@ struct RadioView: View {
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
+    /// Стани без списку: завантаження, порожньо, помилка з повтором.
+    /// Накладаються поверх списку, тому навігація й гучність лишаються доступними.
     @ViewBuilder
     private var stateOverlay: some View {
-        switch viewModel.loadState {
-        case .loading where viewModel.stations.isEmpty:
+        switch viewModel.state {
+        case .idle, .loading:
             ProgressView("Шукаємо хвилі…")
-        case .failed(let message) where viewModel.stations.isEmpty:
+        case .empty:
+            ContentUnavailableView {
+                Label("Ефір порожній", systemImage: "radio")
+            } description: {
+                Text("Каталог не знайшов станцій, які можна відтворити.")
+            } actions: {
+                retryButton(title: "Оновити")
+            }
+        case .failed(let message):
             ContentUnavailableView {
                 Label("Радіо мовчить", systemImage: "antenna.radiowaves.left.and.right.slash")
             } description: {
                 Text(message)
             } actions: {
-                Button("Спробувати ще раз") {
-                    Task { await viewModel.load() }
-                }
-                .buttonStyle(.gradient)
-                .frame(maxWidth: 260)
+                retryButton(title: "Спробувати ще раз")
             }
         case .loaded where viewModel.visibleStations.isEmpty:
             ContentUnavailableView("У цьому жанрі зараз нічого",
                                    systemImage: "music.note",
                                    description: Text("Обери інший жанр."))
-        default:
+        case .loaded:
             EmptyView()
         }
+    }
+
+    private func retryButton(title: String) -> some View {
+        Button(title) {
+            Task { await viewModel.load() }
+        }
+        .buttonStyle(.gradient)
+        .frame(maxWidth: 260)
     }
 }
 
