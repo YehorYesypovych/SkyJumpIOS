@@ -166,7 +166,8 @@ struct JetpackTests {
         }
 
         #expect(session.hasJetpack)
-        #expect(session.pickups.first?.isCollected == true)
+        // підібраний бонус лишився далеко внизу й уже прибраний разом з платформами під екраном
+        #expect(!session.pickups.contains { !$0.isCollected })
         #expect(session.maxHeight > 600)
         #expect(spy.events.contains { if case .jetpackPicked = $0 { return true } else { return false } })
     }
