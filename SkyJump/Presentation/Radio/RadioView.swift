@@ -1,6 +1,7 @@
 import SwiftUI
 
 /// Екран «Радіо»: станції synthwave / retrowave / 80s з відкритого каталогу, фільтр за жанром.
+/// Показує всі стани завантаження: процес, дані, порожньо, помилка з повтором.
 struct RadioView: View {
     @State private var viewModel: RadioViewModel
     @Environment(\.worldTheme) private var theme
@@ -27,6 +28,12 @@ struct RadioView: View {
                 }
             } header: {
                 VStack(spacing: 8) {
+                    if viewModel.checkScenario != .live {
+                        Label("Перевірка: \(viewModel.checkScenario.title)", systemImage: viewModel.checkScenario.systemImage)
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(Theme.sunsetOrange)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
                     RadioVolumeSlider(player: viewModel.player)
                         .padding(.horizontal, 4)
                     genreChips
@@ -38,6 +45,13 @@ struct RadioView: View {
         .appBackground()
         .overlay { stateOverlay }
         .navigationTitle("Радіо")
+        #if DEBUG
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                checkMenu
+            }
+        }
+        #endif
         .task { await viewModel.loadIfNeeded() }
         .refreshable { await viewModel.load() }
         .safeAreaInset(edge: .bottom) {
@@ -46,6 +60,26 @@ struct RadioView: View {
             }
         }
     }
+
+    #if DEBUG
+    /// Меню перевірки станів (лише Debug-збірка): справжній API або контрольована відповідь.
+    private var checkMenu: some View {
+        Menu {
+            Picker("Джерело", selection: Binding(
+                get: { viewModel.checkScenario },
+                set: { scenario in Task { await viewModel.useCheckScenario(scenario) } }
+            )) {
+                ForEach(RadioCheckScenario.allCases) { scenario in
+                    Label(scenario.title, systemImage: scenario.systemImage)
+                        .tag(scenario)
+                }
+            }
+        } label: {
+            Image(systemName: viewModel.checkScenario == .live ? "ladybug" : "ladybug.fill")
+        }
+        .accessibilityLabel("Режим перевірки станів")
+    }
+    #endif
 
     private var genreChips: some View {
         ScrollView(.horizontal, showsIndicators: false) {
@@ -83,30 +117,44 @@ struct RadioView: View {
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
+    /// Стани без списку: завантаження, порожньо, помилка з повтором.
+    /// Накладаються поверх списку, тому навігація й гучність лишаються доступними.
     @ViewBuilder
     private var stateOverlay: some View {
-        switch viewModel.loadState {
-        case .loading where viewModel.stations.isEmpty:
+        switch viewModel.state {
+        case .idle, .loading:
             ProgressView("Шукаємо хвилі…")
-        case .failed(let message) where viewModel.stations.isEmpty:
+        case .empty:
+            ContentUnavailableView {
+                Label("Ефір порожній", systemImage: "radio")
+            } description: {
+                Text("Каталог не знайшов станцій, які можна відтворити.")
+            } actions: {
+                retryButton(title: "Оновити")
+            }
+        case .failed(let message):
             ContentUnavailableView {
                 Label("Радіо мовчить", systemImage: "antenna.radiowaves.left.and.right.slash")
             } description: {
                 Text(message)
             } actions: {
-                Button("Спробувати ще раз") {
-                    Task { await viewModel.load() }
-                }
-                .buttonStyle(.gradient)
-                .frame(maxWidth: 260)
+                retryButton(title: "Спробувати ще раз")
             }
         case .loaded where viewModel.visibleStations.isEmpty:
             ContentUnavailableView("У цьому жанрі зараз нічого",
                                    systemImage: "music.note",
                                    description: Text("Обери інший жанр."))
-        default:
+        case .loaded:
             EmptyView()
         }
+    }
+
+    private func retryButton(title: String) -> some View {
+        Button(title) {
+            Task { await viewModel.load() }
+        }
+        .buttonStyle(.gradient)
+        .frame(maxWidth: 260)
     }
 }
 

@@ -1,7 +1,9 @@
 import Foundation
 
+// Моделі відповіді сервера `nonisolated`: їх декодує мережевий компонент поза головним потоком.
+
 /// Запис таблиці лідерів нескінченного режиму.
-struct LeaderboardEntry: Identifiable, Codable, Equatable {
+nonisolated struct LeaderboardEntry: Identifiable, Codable, Equatable, Sendable {
     let id: String
     let player: String
     let score: Int
@@ -10,14 +12,14 @@ struct LeaderboardEntry: Identifiable, Codable, Equatable {
 }
 
 /// Рахунок, який надсилається на сервер.
-struct ScoreSubmission: Codable, Equatable {
+nonisolated struct ScoreSubmission: Codable, Equatable, Sendable {
     let player: String
     let score: Int
     let theme: String
 }
 
 /// Відповідь сервера на надсилання рахунку.
-struct SubmitResult: Decodable, Equatable {
+nonisolated struct SubmitResult: Decodable, Equatable, Sendable {
     let entry: LeaderboardEntry
     let rank: Int              // місце в таблиці, з 1
 }

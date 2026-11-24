@@ -80,6 +80,45 @@ final class SilentStreamer: AudioStreaming {
 }
 
 /// Заготовлені станції для Preview — без мережі.
+/// Сценарій перевірки екрана радіо: справжній каталог або контрольована відповідь.
+enum RadioCheckScenario: String, CaseIterable, Identifiable {
+    case live
+    case stations
+    case empty
+    case offline
+    case serverError
+    case brokenJSON
+    case slow
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .live: "Справжній API"
+        case .stations: "Тестові станції"
+        case .empty: "Порожня відповідь"
+        case .offline: "Немає мережі"
+        case .serverError: "HTTP 500"
+        case .brokenJSON: "Пошкоджений JSON"
+        case .slow: "Повільна відповідь"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .live: "antenna.radiowaves.left.and.right"
+        case .stations: "list.bullet"
+        case .empty: "tray"
+        case .offline: "wifi.slash"
+        case .serverError: "exclamationmark.icloud"
+        case .brokenJSON: "curlybraces"
+        case .slow: "tortoise"
+        }
+    }
+}
+
+/// Заглушка каталогу радіо: три станції або обраний сценарій відмови.
+/// Помилки — ті самі `NetworkError`, що дає справжній мережевий клієнт.
 struct StubRadioProvider: RadioStationProviding {
     static let stations: [RadioStation] = [
         RadioStation(id: "stub-1", name: "Neon Beach FM", streamURL: URL(string: "https://example.com/neon.mp3")!,
@@ -93,8 +132,33 @@ struct StubRadioProvider: RadioStationProviding {
                      faviconURL: nil, bitrate: 96)
     ]
 
+    var scenario: RadioCheckScenario = .stations
+    /// Затримка сценарію «повільна відповідь».
+    var slowDelay: Duration = .seconds(3)
+
     func stations(for genres: [RadioGenre]) async throws -> [RadioStation] {
-        Self.stations
+        switch scenario {
+        case .live, .stations:
+            return Self.stations
+        case .empty:
+            return []
+        case .offline:
+            throw NetworkError.transport(.notConnectedToInternet)
+        case .serverError:
+            throw NetworkError.httpStatus(500)
+        case .brokenJSON:
+            // справжнє декодування зіпсованої відповіді: у станції немає обов'язкового поля
+            let broken = Data(#"[{"stationuuid": "x", "url": "https://x.example/stream"}]"#.utf8)
+            do {
+                _ = try JSONDecoder.skyJump.decode([RadioBrowserStationDTO].self, from: broken)
+                return []
+            } catch let error as DecodingError {
+                throw NetworkError.decoding(URLSessionHTTPClient.describe(error))
+            }
+        case .slow:
+            try await Task.sleep(for: slowDelay)
+            return Self.stations
+        }
     }
 }
 

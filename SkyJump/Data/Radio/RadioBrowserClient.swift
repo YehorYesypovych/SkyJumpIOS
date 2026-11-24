@@ -1,81 +1,93 @@
 import Foundation
 
 /// Клієнт відкритого каталогу інтернет-радіо Radio Browser (radio-browser.info): без ключа,
-/// станції шукаються за тегом-жанром. Якщо один сервер недоступний, пробується наступний.
+/// станції шукаються за тегом-жанром.
+///
+/// З мережею напряму не працює — отримує мережевий компонент `HTTPClient` для кожного
+/// дзеркала каталогу. Якщо дзеркало недоступне (помилка мережі або `5xx`), пробується наступне.
+/// Помилка формату чи `4xx` не лікується іншим сервером, тому віддається одразу.
 struct RadioBrowserClient: RadioStationProviding {
     static let servers = ["de1.api.radio-browser.info",
                           "de2.api.radio-browser.info",
                           "fi1.api.radio-browser.info"]
 
-    private let session: URLSession
+    /// Справжні клієнти — по одному на дзеркало.
+    static func liveClients() -> [any HTTPClient] {
+        servers.compactMap { URL(string: "https://\($0)") }
+            .map { URLSessionHTTPClient(baseURL: $0, timeout: 10) }
+    }
+
+    private let clients: [any HTTPClient]
     private let mapper: RadioStationMapper
     private let limitPerGenre: Int
 
-    init(session: URLSession = .shared, mapper: RadioStationMapper = RadioStationMapper(), limitPerGenre: Int = 25) {
-        self.session = session
+    init(clients: [any HTTPClient], mapper: RadioStationMapper = RadioStationMapper(), limitPerGenre: Int = 25) {
+        self.clients = clients
         self.mapper = mapper
         self.limitPerGenre = limitPerGenre
     }
 
+    /// Станції всіх жанрів. Порожній масив — не помилка: екран покаже стан «порожньо».
     func stations(for genres: [RadioGenre]) async throws -> [RadioStation] {
         var collected: [RadioBrowserStationDTO] = []
+        var failures = 0
         var lastError: Error?
 
-        // жанр, що не завантажився, не ламає весь список — помилка лише якщо не вдалося нічого
+        // жанр, що не завантажився, не ламає весь список — помилка лише якщо не вдався жоден запит
         for genre in genres {
             do {
                 collected += try await fetch(tag: genre.rawValue)
             } catch {
+                failures += 1
                 lastError = error
             }
         }
-        if collected.isEmpty, let lastError {
+        if failures == genres.count, let lastError {
             throw lastError
         }
-
-        let stations = mapper.map(collected)
-        guard !stations.isEmpty else { throw RadioError.noStations }
-        return stations
+        return mapper.map(collected)
     }
 
-    /// Запит станцій одного тегу з перебором серверів.
+    /// Запит станцій одного тегу з перебором дзеркал.
     private func fetch(tag: String) async throws -> [RadioBrowserStationDTO] {
-        var lastError: Error = RadioError.badResponse
-        for host in Self.servers {
+        var lastError: Error = NetworkError.invalidResponse
+        for client in clients {
             do {
-                let request = makeRequest(host: host, tag: tag)
-                let (data, response) = try await session.data(for: request)
-                guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-                    throw RadioError.badResponse
-                }
-                return try JSONDecoder().decode([RadioBrowserStationDTO].self, from: data)
-            } catch {
+                return try await client.send(request(tag: tag), as: [RadioBrowserStationDTO].self)
+            } catch let error as NetworkError where Self.shouldTryNextServer(after: error) {
                 lastError = error
             }
         }
         throw lastError
     }
 
-    func makeRequest(host: String, tag: String) -> URLRequest {
-        var components = URLComponents()
-        components.scheme = "https"
-        components.host = host
-        components.path = "/json/stations/bytag/\(tag)"
-        components.queryItems = [
-            URLQueryItem(name: "hidebroken", value: "true"),
-            URLQueryItem(name: "order", value: "clickcount"),
-            URLQueryItem(name: "reverse", value: "true"),
-            URLQueryItem(name: "limit", value: "\(limitPerGenre)")
-        ]
-        var request = URLRequest(url: components.url ?? URL(string: "https://\(host)")!, timeoutInterval: 10)
-        // каталог просить представлятися назвою застосунку
-        request.setValue("SkyJump/1.0", forHTTPHeaderField: "User-Agent")
-        return request
+    /// Чи є сенс питати інше дзеркало після такої помилки.
+    static func shouldTryNextServer(after error: NetworkError) -> Bool {
+        switch error {
+        case .transport, .invalidResponse:
+            return true
+        case .httpStatus(let code):
+            return code >= 500
+        case .decoding:
+            return false
+        }
+    }
+
+    /// `GET /json/stations/bytag/{tag}` — найпопулярніші робочі станції жанру.
+    func request(tag: String) -> HTTPRequest {
+        HTTPRequest(path: "/json/stations/bytag/\(tag)",
+                    query: [
+                        URLQueryItem(name: "hidebroken", value: "true"),
+                        URLQueryItem(name: "order", value: "clickcount"),
+                        URLQueryItem(name: "reverse", value: "true"),
+                        URLQueryItem(name: "limit", value: "\(limitPerGenre)")
+                    ])
     }
 }
 
 /// Станція у форматі відповіді Radio Browser (лише потрібні поля).
-struct RadioBrowserStationDTO: Decodable {
+/// `nonisolated`: декодування не прив'язане до головного потоку, тому модель можна віддати в `HTTPClient.send`.
+nonisolated struct RadioBrowserStationDTO: Decodable, Sendable {
     let stationuuid: String
     let name: String
     let url: String
