@@ -72,12 +72,14 @@ enum PlayerRenderer {
             drawEyes(body: body, eyesY: eyesY, isFalling: pose.isFalling, in: &context)
         }
 
-        if skin != .diver {
-            drawSmile(body: body, y: eyesY + width * 0.34, line: line, in: &context)
-        }
-        if skin == .doodle {
-            drawCigarette(body: body, mouthY: eyesY + width * 0.36, phase: pose.flicker,
+        switch skin {
+        case .diver:
+            break
+        case .doodle:
+            drawCigarette(body: body, mouthY: eyesY + width * 0.38, phase: pose.flicker,
                           outline: outline, line: line, in: &context)
+        default:
+            drawSmile(body: body, y: eyesY + width * 0.34, line: line, in: &context)
         }
     }
 
@@ -165,29 +167,51 @@ enum PlayerRenderer {
         context.fill(leaves, with: .color(gold))
     }
 
-    /// Цигарка в кутику рота і дим, що в'ється вгору. phase зсуває хвилі диму від кадру до кадру.
+    /// Цигарка, затиснута в кутику рота: трохи звисає донизу, фільтр ховається між губами,
+    /// а з кінчика в'ється дим. phase зсуває хвилі диму від кадру до кадру.
     private static func drawCigarette(body: CGRect, mouthY: CGFloat, phase: CGFloat, outline: Color,
                                       line: CGFloat, in context: inout GraphicsContext) {
         let width = body.width
-        let startX: CGFloat = body.midX + width * 0.10
-        let length: CGFloat = width * 0.48
-        let thickness: CGFloat = width * 0.09
+        let mouth = CGPoint(x: body.midX + width * 0.08, y: mouthY)
 
-        // фільтр і паперова частина
-        let filter = CGRect(x: startX, y: mouthY - thickness / 2, width: length * 0.3, height: thickness)
-        let paper = CGRect(x: filter.maxX, y: filter.minY, width: length * 0.62, height: thickness)
+        // кривувата усмішка, що закінчується там, де затиснута цигарка
+        var smirk = Path()
+        smirk.move(to: CGPoint(x: body.midX - width * 0.14, y: mouthY - width * 0.02))
+        smirk.addQuadCurve(to: mouth, control: CGPoint(x: body.midX - width * 0.03, y: mouthY + width * 0.06))
+        context.stroke(smirk, with: .color(.black.opacity(0.75)), style: StrokeStyle(lineWidth: line, lineCap: .round))
+
+        // цигарка малюється в повернутій системі координат: початок — у роті, нахил 14° донизу
+        let length: CGFloat = width * 0.5
+        let thickness: CGFloat = width * 0.09
+        let angle = Angle.degrees(14)
+        var stick = context
+        stick.translateBy(x: mouth.x, y: mouth.y)
+        stick.rotate(by: angle)
+
+        let filter = CGRect(x: -length * 0.08, y: -thickness / 2, width: length * 0.32, height: thickness)
+        let paper = CGRect(x: filter.maxX, y: filter.minY, width: length * 0.6, height: thickness)
         let ember = CGRect(x: paper.maxX, y: filter.minY, width: length * 0.08, height: thickness)
-        context.fill(Path(roundedRect: filter, cornerRadius: thickness * 0.2),
-                     with: .color(Color(red: 0.93, green: 0.60, blue: 0.25)))
-        context.fill(Path(paper), with: .color(.white))
-        context.fill(Path(roundedRect: ember, cornerRadius: thickness * 0.3),
-                     with: .color(Color(red: 1.0, green: 0.30, blue: 0.15)))
+        stick.fill(Path(roundedRect: filter, cornerRadius: thickness * 0.2),
+                   with: .color(Color(red: 0.93, green: 0.60, blue: 0.25)))
+        stick.fill(Path(paper), with: .color(.white))
+        stick.fill(Path(roundedRect: ember, cornerRadius: thickness * 0.3),
+                   with: .color(Color(red: 1.0, green: 0.30, blue: 0.15)))
         let whole = CGRect(x: filter.minX, y: filter.minY, width: ember.maxX - filter.minX, height: thickness)
-        context.stroke(Path(roundedRect: whole, cornerRadius: thickness * 0.3), with: .color(outline),
-                       lineWidth: line * 0.6)
+        stick.stroke(Path(roundedRect: whole, cornerRadius: thickness * 0.3), with: .color(outline),
+                     lineWidth: line * 0.6)
+
+        // губи поверх фільтра — цигарка «в роті», а не прикладена збоку
+        let lips = CGRect(x: mouth.x - width * 0.06, y: mouth.y - width * 0.055, width: width * 0.12, height: width * 0.11)
+        context.fill(Path(ellipseIn: lips), with: .color(Color(red: 0.42, green: 0.62, blue: 0.16)))
+        context.stroke(Path(ellipseIn: lips), with: .color(.black.opacity(0.75)), lineWidth: line * 0.8)
+
+        // кінчик у звичайних координатах: повертаємо точку так само, як цигарку
+        let tipDistance: CGFloat = ember.midX
+        let radians = CGFloat(angle.radians)
+        let tip = CGPoint(x: mouth.x + tipDistance * cos(radians),
+                          y: mouth.y + tipDistance * sin(radians) - thickness / 2)
 
         // дим: дві хвилясті цівки, що розсіюються вгорі
-        let tip = CGPoint(x: ember.midX, y: ember.minY)
         let rise: CGFloat = width * 0.9
         for (index, sway) in [CGFloat(1), CGFloat(-0.7)].enumerated() {
             let offset: CGFloat = CGFloat(index) * width * 0.08
