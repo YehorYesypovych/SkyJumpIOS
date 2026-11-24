@@ -77,9 +77,6 @@ final class RadioViewModel {
                 break
             }
         }
-        if let radioError = error as? RadioError, radioError == .noStations {
-            return "Не знайшли станцій, які можна відтворити."
-        }
         return "Каталог радіо зараз недоступний. Спробуй трохи згодом."
     }
 }

@@ -33,7 +33,7 @@ struct AppDependencies {
                                endlessScores: UserDefaultsScoreStore(defaults: .standard, key: "endlessBestScore"),
                                library: LevelLibrary(),
                                radio: RadioPlayer(streamer: AVPlayerStreamer()),
-                               radioProvider: RadioBrowserClient(),
+                               radioProvider: RadioBrowserClient(clients: RadioBrowserClient.liveClients()),
                                cosmetics: CosmeticsSettings(),
                                // справжній клієнт і надсилання рахунку додає частина B
                                leaderboard: UnavailableLeaderboard(),

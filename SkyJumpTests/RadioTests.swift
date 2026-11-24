@@ -51,13 +51,16 @@ struct RadioStationMapperTests {
         #expect(palm.faviconURL == nil)
     }
 
-    @Test func requestAsksForGenreSortedByPopularity() {
-        let request = RadioBrowserClient().makeRequest(host: "de1.api.radio-browser.info", tag: "synthwave")
+    @Test func requestAsksForGenreSortedByPopularity() throws {
+        let client = URLSessionHTTPClient(baseURL: URL(string: "https://de1.api.radio-browser.info")!)
+        let request = try #require(client.makeURLRequest(RadioBrowserClient(clients: []).request(tag: "synthwave")))
         let url = request.url?.absoluteString ?? ""
 
         #expect(url.hasPrefix("https://de1.api.radio-browser.info/json/stations/bytag/synthwave"))
         #expect(url.contains("hidebroken=true"))
         #expect(url.contains("order=clickcount"))
+        #expect(url.contains("limit=25"))
+        #expect(request.httpMethod == "GET")
         #expect(request.value(forHTTPHeaderField: "User-Agent") == "SkyJump/1.0")
     }
 }
