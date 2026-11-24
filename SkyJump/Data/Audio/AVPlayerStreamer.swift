@@ -15,6 +15,12 @@ final class AVPlayerStreamer: AudioStreaming {
     }
 
     init() {
+        #if canImport(UIKit)
+        // налаштування аудіосесії може надовго заблокувати потік, тому — не на головному
+        Task.detached(priority: .userInitiated) {
+            try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
+        }
+        #endif
         statusObservation = player.observe(\.timeControlStatus, options: [.new]) { [weak self] player, _ in
             let status = player.timeControlStatus
             // weak self захоплюється заново: задача не звертається до змінної іншого замикання
@@ -25,12 +31,8 @@ final class AVPlayerStreamer: AudioStreaming {
     }
 
     func play(url: URL) {
-        #if canImport(UIKit)
-        // радіо — основний звук застосунку: грає і з вимкненим перемикачем звуку
-        try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
-        try? AVAudioSession.sharedInstance().setActive(true)
-        #endif
-
+        // категорію сесії (звук і з вимкненим перемикачем) задано в init поза головним потоком;
+        // активує сесію сам AVPlayer, коли починає грати
         let item = AVPlayerItem(url: url)
         itemObservation = item.observe(\.status, options: [.new]) { [weak self] item, _ in
             guard item.status == .failed else { return }

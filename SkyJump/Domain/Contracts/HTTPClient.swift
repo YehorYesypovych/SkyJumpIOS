@@ -29,5 +29,6 @@ enum NetworkError: Error, Equatable {
 /// Мережевий компонент застосунку: єдине місце, звідки йдуть HTTP-запити.
 protocol HTTPClient {
     /// Надсилає запит, перевіряє HTTP-статус і лише потім декодує JSON у T.
-    func send<T: Decodable>(_ request: HTTPRequest, as type: T.Type) async throws -> T
+    /// Моделі відповіді — `Sendable`: декодовані дані безпечно передаються між потоками.
+    func send<T: Decodable & Sendable>(_ request: HTTPRequest, as type: T.Type) async throws -> T
 }

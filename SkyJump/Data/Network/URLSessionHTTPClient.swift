@@ -26,7 +26,7 @@ final class URLSessionHTTPClient: HTTPClient {
         self.timeout = timeout
     }
 
-    func send<T: Decodable>(_ request: HTTPRequest, as type: T.Type) async throws -> T {
+    func send<T: Decodable & Sendable>(_ request: HTTPRequest, as type: T.Type) async throws -> T {
         let data = try await data(for: request)
         do {
             return try decoder.decode(T.self, from: data)

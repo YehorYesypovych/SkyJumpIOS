@@ -1,3 +1,4 @@
+import Foundation
 @testable import SkyJump
 
 /// Spy-спостерігач: запам'ятовує всі події, які надіслала сесія.
