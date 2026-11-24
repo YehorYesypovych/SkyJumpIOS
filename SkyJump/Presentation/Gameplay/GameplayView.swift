@@ -5,7 +5,6 @@ struct GameplayView: View {
     @State private var viewModel: GameplayViewModel
     @State private var clock = FrameClock()
     @State private var hasTouched = false
-    @State private var pressedSide = 0          // -1 — ліва половина, 1 — права, 0 — ніхто не тримає
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -77,9 +76,6 @@ struct GameplayView: View {
                 .contentShape(Rectangle())
                 .gesture(controlGesture(width: proxy.size.width))
 
-                touchZones
-                    .allowsHitTesting(false)
-
                 hud
                     .allowsHitTesting(false)
 
@@ -104,7 +100,6 @@ struct GameplayView: View {
             }
             .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: viewModel.outcome)
             .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: viewModel.isPaused)
-            .animation(reduceMotion ? nil : .easeOut(duration: 0.15), value: pressedSide)
         }
     }
 
@@ -112,13 +107,10 @@ struct GameplayView: View {
     private func controlGesture(width: CGFloat) -> some Gesture {
         DragGesture(minimumDistance: 0)
             .onChanged { value in
-                let side = value.location.x < width / 2 ? -1 : 1
                 hasTouched = true
-                pressedSide = side
-                viewModel.setInput(Double(side))
+                viewModel.setInput(value.location.x < width / 2 ? -1 : 1)
             }
             .onEnded { _ in
-                pressedSide = 0
                 viewModel.setInput(0)
             }
     }
@@ -173,31 +165,6 @@ struct GameplayView: View {
         .padding(.top, 4)
         .animation(reduceMotion ? nil : .spring(duration: 0.35), value: viewModel.frame.jetpackLeft > 0)
         .animation(reduceMotion ? nil : .spring(duration: 0.35), value: hasTouched)
-    }
-
-    /// Підказка, де тримати: дві половини екрана зі стрілками. Після першого дотику лишається лише
-    /// легке підсвічування сторони, яку тримає гравець.
-    private var touchZones: some View {
-        HStack(spacing: 0) {
-            zone(side: -1, symbol: "chevron.left")
-            zone(side: 1, symbol: "chevron.right")
-        }
-        .ignoresSafeArea()
-    }
-
-    private func zone(side: Int, symbol: String) -> some View {
-        let isPressed = pressedSide == side
-        return ZStack(alignment: .bottom) {
-            LinearGradient(colors: [.clear, .white.opacity(isPressed ? 0.18 : 0)],
-                           startPoint: .top, endPoint: .bottom)
-            if !hasTouched {
-                Image(systemName: symbol)
-                    .font(.system(size: 30, weight: .bold))
-                    .foregroundStyle(.white.opacity(0.7))
-                    .padding(.bottom, 48)
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private var pauseOverlay: some View {
