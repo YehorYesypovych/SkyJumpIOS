@@ -39,6 +39,7 @@ final class SpyNavigator: AppNavigating {
 
     func showLevel(_ id: LevelPreset.ID) { calls.append("showLevel") }
     func startGame(_ id: LevelPreset.ID) { calls.append("startGame") }
+    func startEndless() { calls.append("startEndless") }
     func simulateLevel(_ id: LevelPreset.ID) { calls.append("simulateLevel") }
     func showDemo() { calls.append("showDemo") }
     func showRadio() { calls.append("showRadio") }

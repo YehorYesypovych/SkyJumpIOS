@@ -7,7 +7,8 @@ struct ScreenFactory {
 
     func makeLevelList() -> some View {
         LevelListView(viewModel: LevelListViewModel(library: dependencies.library,
-                                                    navigator: navigator))
+                                                    navigator: navigator,
+                                                    endlessScores: dependencies.endlessScores))
             .safeAreaInset(edge: .bottom) {
                 MiniPlayerBar(player: dependencies.radio) { [navigator] in
                     navigator.showRadio()
@@ -26,6 +27,14 @@ struct ScreenFactory {
             GameplayView(viewModel: GameplayViewModel(levelID: id,
                                                       library: dependencies.library,
                                                       scoreStore: dependencies.scoreStore,
+                                                      navigator: navigator),
+                         radio: dependencies.radio,
+                         cosmetics: dependencies.cosmetics)
+        case .endless:
+            GameplayView(viewModel: GameplayViewModel(mode: .endless,
+                                                      library: dependencies.library,
+                                                      scoreStore: dependencies.scoreStore,
+                                                      endlessScores: dependencies.endlessScores,
                                                       navigator: navigator),
                          radio: dependencies.radio,
                          cosmetics: dependencies.cosmetics)

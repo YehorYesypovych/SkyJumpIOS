@@ -4,6 +4,7 @@ import Foundation
 enum Route: Hashable {
     case levelDetail(LevelPreset.ID)
     case play(LevelPreset.ID)       // справжня гра з керуванням
+    case endless                    // нескінченний режим
     case game(LevelPreset.ID)       // симуляція рівня (8 с без керування)
     case demo
     case radio

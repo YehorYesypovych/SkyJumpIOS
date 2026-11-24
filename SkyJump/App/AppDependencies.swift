@@ -6,6 +6,8 @@ struct AppDependencies {
     let levelProvider: any LevelProviding
     let simulator: any GameSimulating
     let scoreStore: any ScoreStoring
+    /// Рекорд нескінченного режиму — окремо від рекордів рівнів.
+    let endlessScores: any ScoreStoring
     /// Бібліотека рівнів «Мої рівні» — спільна для всіх екранів.
     let library: LevelLibrary
     /// Радіо — одне на весь застосунок; каталог станцій — через протокол.
@@ -25,6 +27,7 @@ struct AppDependencies {
         return AppDependencies(levelProvider: levelProvider,
                                simulator: GameSimulationService(observers: [ConsoleEventLogger()]),
                                scoreStore: UserDefaultsScoreStore(defaults: .standard),
+                               endlessScores: UserDefaultsScoreStore(defaults: .standard, key: "endlessBestScore"),
                                library: LevelLibrary(),
                                radio: RadioPlayer(streamer: AVPlayerStreamer()),
                                radioProvider: RadioBrowserClient(),

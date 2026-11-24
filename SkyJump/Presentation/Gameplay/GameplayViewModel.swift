@@ -37,7 +37,7 @@ final class GameplayViewModel {
 
     @ObservationIgnored private let round: GameRound
     @ObservationIgnored private let library: LevelLibrary
-    @ObservationIgnored let levelID: LevelPreset.ID
+    @ObservationIgnored let mode: GameMode
     @ObservationIgnored private weak var navigator: AppNavigating?
     @ObservationIgnored private var input: Double = 0
     @ObservationIgnored private var trail: [GameFrame.TrailPoint] = []
@@ -47,30 +47,47 @@ final class GameplayViewModel {
     static let trailSpacing = 7.0
     @ObservationIgnored private let jetpackDuration: Double
 
-    init(levelID: LevelPreset.ID,
+    convenience init(levelID: LevelPreset.ID,
+                     library: LevelLibrary,
+                     scoreStore: any ScoreStoring,
+                     navigator: AppNavigating,
+                     rules: GameRules = .standard,
+                     makeLevel: @escaping (LevelPreset) -> [Platform] = { PresetLevelProvider(preset: $0).makeLevel() }) {
+        self.init(mode: .level(levelID), library: library, scoreStore: scoreStore,
+                  endlessScores: InMemoryScoreStore(), navigator: navigator, rules: rules, makeLevel: makeLevel)
+    }
+
+    init(mode: GameMode,
          library: LevelLibrary,
          scoreStore: any ScoreStoring,
+         endlessScores: any ScoreStoring,
          navigator: AppNavigating,
          rules: GameRules = .standard,
          makeLevel: @escaping (LevelPreset) -> [Platform] = { PresetLevelProvider(preset: $0).makeLevel() }) {
-        self.levelID = levelID
+        self.mode = mode
         self.jetpackDuration = max(rules.jetpackDuration, 0.01)
         self.library = library
         self.navigator = navigator
-        self.round = GameRound(levelID: levelID,
+        self.round = GameRound(mode: mode,
                                library: library,
                                scoreStore: scoreStore,
+                               endlessScores: endlessScores,
                                rules: Self.gameplayRules(from: rules),
                                makeLevel: makeLevel)
     }
 
-    /// Актуальний рівень з бібліотеки; nil, якщо його видалили.
-    var level: LevelPreset? { library.level(id: levelID) }
+    /// Актуальний рівень з бібліотеки; nil — рівень видалили або це нескінченний режим.
+    var level: LevelPreset? { round.level }
 
-    var title: String { level?.name ?? "Гра" }
+    var isEndless: Bool { mode == .endless }
 
-    /// Рекорд рівня — оновлюється в бібліотеці одразу після кінця гри.
-    var bestScore: Int { level?.bestScore ?? 0 }
+    /// Рівень видалили — грати нема в що.
+    var isUnavailable: Bool { !isEndless && level == nil }
+
+    var title: String { isEndless ? "Нескінченний режим" : (level?.name ?? "Гра") }
+
+    /// Рекорд рівня або нескінченного режиму — оновлюється одразу після кінця гри.
+    var bestScore: Int { round.bestScore }
 
     var isPlaying: Bool { hasStarted && !isPaused && outcome == .playing }
 
@@ -92,6 +109,7 @@ final class GameplayViewModel {
         guard isPlaying, let session = round.session else { return }
 
         session.step(deltaTime: min(max(deltaTime, 0), Self.maxDeltaTime), input: input)
+        round.extendIfNeeded()
 
         if round.finishIfNeeded() {
             isNewRecord = round.isNewRecord

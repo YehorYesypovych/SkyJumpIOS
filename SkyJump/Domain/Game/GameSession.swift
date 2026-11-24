@@ -201,6 +201,12 @@ final class GameSession {
         }
     }
 
+    /// Додає нові платформи й бонуси над гравцем (нескінченний режим).
+    func extendLevel(platforms newPlatforms: [Platform], pickups newPickups: [Pickup]) {
+        platforms.append(contentsOf: newPlatforms)
+        pickups.append(contentsOf: newPickups)
+    }
+
     private func emit(_ event: GameEvent) {
         observers.removeAll { $0.value == nil }
         for observer in observers {

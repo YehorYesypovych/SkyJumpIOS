@@ -31,7 +31,7 @@ struct GameplayView: View {
 
     var body: some View {
         Group {
-            if !viewModel.hasStarted && viewModel.level == nil {
+            if !viewModel.hasStarted && viewModel.isUnavailable {
                 ContentUnavailableView {
                     Label("Рівень не знайдено", systemImage: "questionmark.square.dashed")
                 } description: {

@@ -11,6 +11,18 @@ struct LevelListView: View {
     var body: some View {
         List {
             Section {
+                Button {
+                    viewModel.startEndless()
+                } label: {
+                    EndlessCard(subtitle: viewModel.endlessSubtitle)
+                }
+                .buttonStyle(.plain)
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
+                .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 10, trailing: 16))
+            }
+
+            Section {
                 ForEach(viewModel.levels) { level in
                     Button {
                         viewModel.open(level.id)
@@ -79,6 +91,39 @@ struct LevelListView: View {
                 }
             }
         }
+    }
+}
+
+/// Велика картка нескінченного режиму в кольорах теми.
+private struct EndlessCard: View {
+    let subtitle: String
+    @Environment(\.worldTheme) private var theme
+
+    var body: some View {
+        HStack(spacing: 14) {
+            Text("∞")
+                .font(.system(size: 34, weight: .heavy, design: .rounded))
+                .foregroundStyle(.white)
+                .frame(width: 56, height: 56)
+                .background(.white.opacity(0.2), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Нескінченний режим")
+                    .font(.headline)
+                Text(subtitle)
+                    .font(.subheadline)
+                    .opacity(0.85)
+            }
+            .foregroundStyle(.white)
+            Spacer(minLength: 0)
+            Image(systemName: "play.fill")
+                .font(.title3)
+                .foregroundStyle(.white)
+        }
+        .padding(14)
+        .background(theme.palette.buttonGradient, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .shadow(color: theme.palette.accent.opacity(0.3), radius: 10, y: 4)
+        .accessibilityElement(children: .combine)
+        .accessibilityHint("Почати нескінченну гру")
     }
 }
 
