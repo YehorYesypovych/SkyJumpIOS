@@ -13,7 +13,8 @@ enum NeonBeachBackground {
         drawStars(in: &context, size: size, night: night, climb: climb, scale: scale)
 
         // Горизонт «опускається», коли гравець піднімається (паралакс: дальній план рухається повільніше)
-        let horizonY = size.height * 0.70 + CGFloat(climb) * 0.35 * scale
+        let climbOnScreen: CGFloat = CGFloat(climb) * scale
+        let horizonY: CGFloat = size.height * 0.70 + climbOnScreen * 0.35
         guard horizonY < size.height + size.width else { return }
 
         // сонце видно, лише поки горизонт на екрані; приховане — не малюємо (шар зі змішуванням дорогий)
@@ -23,7 +24,7 @@ enum NeonBeachBackground {
         drawSkyline(in: &context, size: size, horizonY: horizonY, night: night)
         drawSea(in: &context, size: size, horizonY: horizonY)
 
-        let palmsBase = size.height * 1.03 + CGFloat(climb) * 0.6 * scale
+        let palmsBase: CGFloat = size.height * 1.03 + climbOnScreen * 0.6
         drawPalm(in: &context, base: CGPoint(x: size.width * 0.06, y: palmsBase),
                  height: size.height * 0.46, lean: size.width * 0.10)
         drawPalm(in: &context, base: CGPoint(x: size.width * 0.95, y: palmsBase + 20),
@@ -59,29 +60,51 @@ enum NeonBeachBackground {
         return value - value.rounded(.down)
     }
 
-    /// Зорі: відносні координати 0…1 і радіус. Рахуються один раз, а не щокадру.
-    private static let stars: [(x: CGFloat, y: CGFloat, radius: CGFloat)] = (0..<70).map { index in
-        (x: CGFloat(noise(Double(index) + 0.5)),
-         y: CGFloat(noise(Double(index) * 7.31 + 3)),
-         radius: noise(Double(index) * 3.7) > 0.8 ? 1.8 : 1.1)
+    /// Зоря: відносні координати 0…1 і радіус.
+    private struct Star {
+        let x: CGFloat
+        let y: CGFloat
+        let radius: CGFloat
+
+        init(index: Int) {
+            let seed = Double(index)
+            x = CGFloat(NeonBeachBackground.noise(seed + 0.5))
+            y = CGFloat(NeonBeachBackground.noise(seed * 7.31 + 3))
+            radius = NeonBeachBackground.noise(seed * 3.7) > 0.8 ? 1.8 : 1.1
+        }
     }
 
-    /// Будинки: відносні ширина й висота та вікна, що світяться вночі. Теж рахуються один раз.
-    private static let buildings: [(width: CGFloat, height: CGFloat, litRows: [Int])] = (0..<13).map { index in
-        (width: 0.55 + CGFloat(noise(Double(index) * 1.7)) * 0.4,
-         height: 0.06 + CGFloat(noise(Double(index) * 4.1 + 2)) * 0.16,
-         litRows: (0..<40).filter { noise(Double(index * 31 + $0)) > 0.55 })
+    /// Будинок: відносні ширина й висота та поверхи, де вночі світяться вікна.
+    private struct Building {
+        let width: CGFloat
+        let height: CGFloat
+        let litRows: [Int]
+
+        init(index: Int) {
+            let seed = Double(index)
+            let widthNoise = CGFloat(NeonBeachBackground.noise(seed * 1.7))
+            let heightNoise = CGFloat(NeonBeachBackground.noise(seed * 4.1 + 2))
+            width = 0.55 + widthNoise * 0.4
+            height = 0.06 + heightNoise * 0.16
+            litRows = (0..<40).filter { row in NeonBeachBackground.noise(Double(index * 31 + row)) > 0.55 }
+        }
     }
+
+    /// Зорі й будинки рахуються один раз, а не щокадру.
+    private static let stars: [Star] = (0..<70).map { Star(index: $0) }
+    private static let buildings: [Building] = (0..<13).map { Building(index: $0) }
 
     private static func drawStars(in context: inout GraphicsContext, size: CGSize,
                                   night: Double, climb: Double, scale: CGFloat) {
         guard night > 0.05 else { return }
-        let drift = CGFloat(climb) * 0.05 * scale
+        let drift: CGFloat = CGFloat(climb) * scale * 0.05
         // усі зорі — один шлях і одна заливка замість 70 окремих
         var path = Path()
         for star in stars {
-            let y = (star.y * size.height + drift).truncatingRemainder(dividingBy: size.height)
-            path.addEllipse(in: CGRect(x: star.x * size.width, y: y, width: star.radius * 2, height: star.radius * 2))
+            let rawY: CGFloat = star.y * size.height + drift
+            let y = rawY.truncatingRemainder(dividingBy: size.height)
+            let diameter: CGFloat = star.radius * 2
+            path.addEllipse(in: CGRect(x: star.x * size.width, y: y, width: diameter, height: diameter))
         }
         context.fill(path, with: .color(.white.opacity(0.85 * night)))
     }
@@ -89,12 +112,12 @@ enum NeonBeachBackground {
     // MARK: - Сонце, місто, море
 
     private static func drawSun(in context: inout GraphicsContext, size: CGSize, horizonY: CGFloat, night: Double) {
-        let radius = size.width * 0.26
+        let radius: CGFloat = size.width * 0.26
         let center = CGPoint(x: size.width * 0.5, y: horizonY - radius * 0.35)
         let rect = CGRect(x: center.x - radius, y: center.y - radius, width: radius * 2, height: radius * 2)
 
         context.drawLayer { layer in
-            layer.opacity = 1 - night * 0.85
+            layer.opacity = 1.0 - night * 0.85
             layer.fill(Path(ellipseIn: rect),
                        with: .linearGradient(Gradient(colors: [Theme.sunYellow, Theme.neonPink]),
                                              startPoint: CGPoint(x: center.x, y: rect.minY),
@@ -102,8 +125,10 @@ enum NeonBeachBackground {
             // смуги на нижній половині сонця — класика synthwave
             layer.blendMode = .destinationOut
             for stripe in 0..<6 {
-                let y = center.y + radius * (0.05 + CGFloat(stripe) * 0.16)
-                let height = 2 + CGFloat(stripe) * 1.6
+                let index = CGFloat(stripe)
+                let offset: CGFloat = radius * (0.05 + index * 0.16)
+                let y = center.y + offset
+                let height: CGFloat = 2 + index * 1.6
                 layer.fill(Path(CGRect(x: rect.minX, y: y, width: rect.width, height: height)), with: .color(.black))
             }
         }
@@ -115,16 +140,18 @@ enum NeonBeachBackground {
         var city = Path()
         var windows = Path()
         for (index, building) in buildings.enumerated() {
-            let width = step * building.width
-            let height = size.width * building.height
-            let rect = CGRect(x: CGFloat(index) * step - width / 2, y: horizonY - height, width: width, height: height)
+            let width: CGFloat = step * building.width
+            let height: CGFloat = size.width * building.height
+            let x: CGFloat = CGFloat(index) * step - width / 2
+            let rect = CGRect(x: x, y: horizonY - height, width: width, height: height)
             city.addRect(rect)
 
             guard night > 0.2 else { continue }
             // світло у вікнах вночі
-            for row in building.litRows where CGFloat(row) < height / 9 {
-                windows.addRect(CGRect(x: rect.minX + width * 0.3, y: rect.minY + 5 + CGFloat(row) * 9,
-                                       width: width * 0.4, height: 3))
+            let floors = Int(height / 9)
+            for row in building.litRows where row < floors {
+                let windowY: CGFloat = rect.minY + 5 + CGFloat(row) * 9
+                windows.addRect(CGRect(x: rect.minX + width * 0.3, y: windowY, width: width * 0.4, height: 3))
             }
         }
         context.fill(city, with: .color(silhouette))
@@ -134,7 +161,8 @@ enum NeonBeachBackground {
     }
 
     private static func drawSea(in context: inout GraphicsContext, size: CGSize, horizonY: CGFloat) {
-        let sea = CGRect(x: 0, y: horizonY, width: size.width, height: max(size.height - horizonY, 0) + size.width)
+        let seaHeight: CGFloat = max(size.height - horizonY, 0) + size.width
+        let sea = CGRect(x: 0, y: horizonY, width: size.width, height: seaHeight)
         context.fill(Path(sea),
                      with: .linearGradient(Gradient(colors: [Color(red: 0.24, green: 0.10, blue: 0.42),
                                                              Color(red: 0.05, green: 0.03, blue: 0.18)]),
@@ -143,17 +171,22 @@ enum NeonBeachBackground {
         // відблиск сонця на воді (лише коли вода на екрані)
         guard horizonY < size.height else { return }
         for line in 0..<5 {
-            let width = size.width * (0.34 - CGFloat(line) * 0.05)
-            let y = horizonY + 8 + CGFloat(line) * 11
-            context.fill(Path(roundedRect: CGRect(x: size.width / 2 - width / 2, y: y, width: width, height: 2.5),
-                              cornerRadius: 1.25),
-                         with: .color(Theme.neonPink.opacity(0.55 - Double(line) * 0.08)))
+            let index = CGFloat(line)
+            let width: CGFloat = size.width * (0.34 - index * 0.05)
+            let y: CGFloat = horizonY + 8 + index * 11
+            let rect = CGRect(x: (size.width - width) / 2, y: y, width: width, height: 2.5)
+            let opacity: Double = 0.55 - Double(line) * 0.08
+            context.fill(Path(roundedRect: rect, cornerRadius: 1.25), with: .color(Theme.neonPink.opacity(opacity)))
         }
     }
 
     // MARK: - Пальми
 
-    private static let leafAngles: [Double] = [-170, -140, -105, -70, -35, -5]
+    /// Напрямки листків пальми (косинус і синус кута), пораховані один раз.
+    private static let leafDirections: [CGVector] = [-170.0, -140, -105, -70, -35, -5].map { (degrees: Double) -> CGVector in
+        let radians = degrees * Double.pi / 180
+        return CGVector(dx: CGFloat(cos(radians)), dy: CGFloat(sin(radians)))
+    }
 
     static func drawPalm(in context: inout GraphicsContext, base: CGPoint, height: CGFloat, lean: CGFloat) {
         let silhouette = Color(red: 0.08, green: 0.02, blue: 0.14)
@@ -165,16 +198,16 @@ enum NeonBeachBackground {
         context.stroke(trunk, with: .color(silhouette),
                        style: StrokeStyle(lineWidth: max(height * 0.035, 5), lineCap: .round))
 
-        let leafLength = height * 0.42
+        let leafLength: CGFloat = height * 0.42
         var leaves = Path()
-        for angle in leafAngles {
-            let radians = angle * .pi / 180
-            let tip = CGPoint(x: top.x + cos(radians) * leafLength,
-                              y: top.y + sin(radians) * leafLength * 0.55 + leafLength * 0.35)
-            let mid = CGPoint(x: (top.x + tip.x) / 2, y: (top.y + tip.y) / 2)
+        for direction in leafDirections {
+            let tipX: CGFloat = top.x + direction.dx * leafLength
+            let tipY: CGFloat = top.y + direction.dy * leafLength * 0.55 + leafLength * 0.35
+            let midX: CGFloat = (top.x + tipX) / 2
+            let midY: CGFloat = (top.y + tipY) / 2
             leaves.move(to: top)
-            leaves.addQuadCurve(to: tip, control: CGPoint(x: mid.x, y: mid.y - leafLength * 0.30))
-            leaves.addQuadCurve(to: top, control: CGPoint(x: mid.x, y: mid.y - leafLength * 0.12))
+            leaves.addQuadCurve(to: CGPoint(x: tipX, y: tipY), control: CGPoint(x: midX, y: midY - leafLength * 0.30))
+            leaves.addQuadCurve(to: top, control: CGPoint(x: midX, y: midY - leafLength * 0.12))
         }
         context.fill(leaves, with: .color(silhouette))
     }

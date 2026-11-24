@@ -17,7 +17,8 @@ final class AVPlayerStreamer: AudioStreaming {
     init() {
         statusObservation = player.observe(\.timeControlStatus, options: [.new]) { [weak self] player, _ in
             let status = player.timeControlStatus
-            Task { @MainActor in
+            // weak self захоплюється заново: задача не звертається до змінної іншого замикання
+            Task { @MainActor [weak self] in
                 self?.report(status)
             }
         }
@@ -32,11 +33,9 @@ final class AVPlayerStreamer: AudioStreaming {
 
         let item = AVPlayerItem(url: url)
         itemObservation = item.observe(\.status, options: [.new]) { [weak self] item, _ in
-            let failed = item.status == .failed
-            Task { @MainActor in
-                if failed {
-                    self?.onStateChange?(.failed)
-                }
+            guard item.status == .failed else { return }
+            Task { @MainActor [weak self] in
+                self?.onStateChange?(.failed)
             }
         }
         player.replaceCurrentItem(with: item)
