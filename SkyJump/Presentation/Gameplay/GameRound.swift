@@ -51,6 +51,7 @@ final class GameRound {
         session = GameSession(playerName: playerName,
                               platforms: platforms,
                               rules: rules,
+                              landingStrategies: LandingStrategies.gameplay(rules: rules),
                               completesAtTop: true,
                               footWidth: Self.footWidth,
                               pickups: makePickups(platforms, level))

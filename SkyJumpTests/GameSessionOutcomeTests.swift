@@ -203,3 +203,46 @@ struct JetpackTests {
         #expect(GameRound.makeJetpacks(on: platforms, seed: 1).isEmpty)
     }
 }
+
+@MainActor
+struct CrumbleLandingTests {
+
+    /// Ламка платформа під стартовою: гравець падає на неї двічі.
+    private func makeSession(strategies: [PlatformType: LandingStrategy]) -> GameSession {
+        let platforms = [
+            Platform(id: 0, x: 160, y: 0, type: .breakable),
+            Platform(id: 1, x: 160, y: 5000)
+        ]
+        return GameSession(playerName: "Doodler", platforms: platforms,
+                           landingStrategies: strategies, completesAtTop: true)
+    }
+
+    private func run(_ session: GameSession, seconds: Double) {
+        for _ in 0..<Int(seconds * 60) {
+            session.step(deltaTime: 1.0 / 60.0)
+        }
+    }
+
+    @Test func breakablePlatformHoldsOneJumpInGame() {
+        let session = makeSession(strategies: LandingStrategies.gameplay())
+
+        run(session, seconds: 0.5)   // перше приземлення: стрибок і тріщина
+        #expect(session.player.jumpsCount == 1)
+        #expect(session.platforms[0].isCracked)
+        #expect(!session.platforms[0].isBroken)
+
+        run(session, seconds: 1.2)   // друге приземлення: платформа розсипається
+        #expect(session.player.jumpsCount == 1)
+        #expect(session.platforms.first { $0.id == 0 }?.isBroken ?? true)
+        #expect(session.brokenPlatformsCount == 1)
+    }
+
+    @Test func simulationBreaksImmediately() {
+        let session = makeSession(strategies: LandingStrategies.standard())
+
+        run(session, seconds: 0.5)
+
+        #expect(session.player.jumpsCount == 0)
+        #expect(session.brokenPlatformsCount == 1)
+    }
+}

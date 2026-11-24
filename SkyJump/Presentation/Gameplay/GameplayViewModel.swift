@@ -132,7 +132,8 @@ final class GameplayViewModel {
                                          y: platform.position.y,
                                          width: platform.width,
                                          type: platform.type,
-                                         isBroken: platform.isBroken)
+                                         isBroken: platform.isBroken,
+                                         isCracked: platform.isCracked)
             },
             pickups: session.pickups
                 .filter { !$0.isCollected }

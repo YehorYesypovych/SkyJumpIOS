@@ -10,6 +10,7 @@ struct GameFrame: Equatable {
         let width: Double
         let type: PlatformType
         let isBroken: Bool
+        let isCracked: Bool
     }
 
     struct PickupSprite: Identifiable, Equatable {

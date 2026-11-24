@@ -338,11 +338,21 @@ private enum GameRenderer {
             let cap = CGRect(x: rect.midX - 9 * scale, y: baseY - 15 * scale, width: 18 * scale, height: 4 * scale)
             context.fill(Path(roundedRect: cap, cornerRadius: 2 * scale), with: .color(Theme.neonPink))
         case .breakable:
+            // ціла — одна тонка тріщина; після першого стрибку — глибокі тріщини на всю платформу
             var crack = Path()
             crack.move(to: CGPoint(x: rect.midX - 8 * scale, y: rect.minY))
             crack.addLine(to: CGPoint(x: rect.midX - 1 * scale, y: rect.midY))
             crack.addLine(to: CGPoint(x: rect.midX + 6 * scale, y: rect.maxY))
-            context.stroke(crack, with: .color(.black.opacity(0.35)), lineWidth: 1.5 * scale)
+            if platform.isCracked {
+                for offset in [-0.3, 0.3] {
+                    let x = rect.midX + rect.width * CGFloat(offset)
+                    crack.move(to: CGPoint(x: x - 4 * scale, y: rect.minY))
+                    crack.addLine(to: CGPoint(x: x + 3 * scale, y: rect.midY))
+                    crack.addLine(to: CGPoint(x: x - 2 * scale, y: rect.maxY))
+                }
+            }
+            context.stroke(crack, with: .color(.black.opacity(platform.isCracked ? 0.6 : 0.35)),
+                           lineWidth: (platform.isCracked ? 2 : 1.5) * scale)
         case .moving:
             for direction in [-1.0, 1.0] {
                 var chevron = Path()
