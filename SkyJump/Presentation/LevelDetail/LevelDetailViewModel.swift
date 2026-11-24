@@ -52,6 +52,11 @@ final class LevelDetailViewModel {
         navigator?.startGame(levelID)
     }
 
+    /// Швидка симуляція рівня без керування (8 с), як у демо-сценарії.
+    func simulate() {
+        navigator?.simulateLevel(levelID)
+    }
+
     func backToList() {
         navigator?.popToRoot()
     }

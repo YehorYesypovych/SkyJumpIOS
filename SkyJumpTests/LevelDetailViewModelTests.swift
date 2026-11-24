@@ -77,4 +77,14 @@ struct LevelDetailViewModelTests {
 
         #expect(navigator.calls == ["presentEditLevel", "startGame"])
     }
+
+    @Test func simulationAsksNavigator() {
+        let library = LevelLibrary()
+        let navigator = SpyNavigator()
+        let viewModel = LevelDetailViewModel(levelID: library.levels[0].id, library: library, navigator: navigator)
+
+        viewModel.simulate()
+
+        #expect(navigator.calls == ["simulateLevel"])
+    }
 }

@@ -14,6 +14,10 @@ final class AppRouter: AppNavigating {
     }
 
     func startGame(_ id: LevelPreset.ID) {
+        path.append(.play(id))
+    }
+
+    func simulateLevel(_ id: LevelPreset.ID) {
         path.append(.game(id))
     }
 

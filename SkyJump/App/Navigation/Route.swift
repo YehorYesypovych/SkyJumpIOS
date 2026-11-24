@@ -3,7 +3,8 @@ import Foundation
 /// Екрани стекової навігації (push).
 enum Route: Hashable {
     case levelDetail(LevelPreset.ID)
-    case game(LevelPreset.ID)
+    case play(LevelPreset.ID)       // справжня гра з керуванням
+    case game(LevelPreset.ID)       // симуляція рівня (8 с без керування)
     case demo
 }
 

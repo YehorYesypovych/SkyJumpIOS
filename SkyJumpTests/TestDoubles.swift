@@ -39,6 +39,7 @@ final class SpyNavigator: AppNavigating {
 
     func showLevel(_ id: LevelPreset.ID) { calls.append("showLevel") }
     func startGame(_ id: LevelPreset.ID) { calls.append("startGame") }
+    func simulateLevel(_ id: LevelPreset.ID) { calls.append("simulateLevel") }
     func showDemo() { calls.append("showDemo") }
     func pop() { calls.append("pop") }
     func popToRoot() { calls.append("popToRoot") }

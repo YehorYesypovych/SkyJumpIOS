@@ -4,6 +4,7 @@ import Foundation
 protocol AppNavigating: AnyObject {
     func showLevel(_ id: LevelPreset.ID)
     func startGame(_ id: LevelPreset.ID)
+    func simulateLevel(_ id: LevelPreset.ID)
     func showDemo()
     func pop()
     func popToRoot()

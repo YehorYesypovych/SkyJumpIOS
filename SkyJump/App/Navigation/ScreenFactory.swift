@@ -17,6 +17,11 @@ struct ScreenFactory {
             LevelDetailView(viewModel: LevelDetailViewModel(levelID: id,
                                                             library: dependencies.library,
                                                             navigator: navigator))
+        case .play(let id):
+            GameplayView(viewModel: GameplayViewModel(levelID: id,
+                                                      library: dependencies.library,
+                                                      scoreStore: dependencies.scoreStore,
+                                                      navigator: navigator))
         case .game(let id):
             GameView(viewModel: GameViewModel(levelID: id,
                                               library: dependencies.library,

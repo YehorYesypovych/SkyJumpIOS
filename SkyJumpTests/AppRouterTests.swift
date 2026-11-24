@@ -11,10 +11,19 @@ struct AppRouterTests {
 
         router.showLevel(id)
         router.startGame(id)
-        #expect(router.path == [.levelDetail(id), .game(id)])
+        #expect(router.path == [.levelDetail(id), .play(id)])
 
         router.pop()
         #expect(router.path == [.levelDetail(id)])
+    }
+
+    @Test func simulationOpensSeparateRoute() {
+        let router = AppRouter()
+        let id = UUID()
+        router.showLevel(id)
+
+        router.simulateLevel(id)
+        #expect(router.path == [.levelDetail(id), .game(id)])
     }
 
     @Test func popOnEmptyStackDoesNothing() {
