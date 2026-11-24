@@ -81,6 +81,22 @@ struct StubStationsProvider: RadioStationProviding {
     }
 }
 
+/// Мережевий клієнт із заготовленою відповіддю: JSON-рядок або помилка. Рахує звернення.
+@MainActor
+final class ScriptedHTTPClient: HTTPClient {
+    private let outcome: Result<String, NetworkError>
+    private(set) var requests: [HTTPRequest] = []
+
+    init(json: String) { outcome = .success(json) }
+    init(error: NetworkError) { outcome = .failure(error) }
+
+    func send<T: Decodable & Sendable>(_ request: HTTPRequest, as type: T.Type) async throws -> T {
+        requests.append(request)
+        let json = try outcome.get()
+        return try JSONDecoder.skyJump.decode(T.self, from: Data(json.utf8))
+    }
+}
+
 /// Запам'ятовує рахунки, які гра віддала в таблицю лідерів.
 @MainActor
 final class SpyScoreReporter: ScoreReporting {

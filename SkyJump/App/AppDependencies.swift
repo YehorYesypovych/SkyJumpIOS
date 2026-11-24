@@ -43,7 +43,7 @@ struct AppDependencies {
                                endlessScores: UserDefaultsScoreStore(defaults: .standard, key: "endlessBestScore"),
                                library: LevelLibrary(),
                                radio: RadioPlayer(streamer: AVPlayerStreamer()),
-                               radioProvider: RadioBrowserClient(),
+                               radioProvider: RadioBrowserClient(clients: RadioBrowserClient.liveClients()),
                                cosmetics: cosmetics,
                                leaderboard: leaderboard,
                                scoreReporter: reporter,
