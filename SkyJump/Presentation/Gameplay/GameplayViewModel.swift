@@ -31,6 +31,7 @@ final class GameplayViewModel {
     @ObservationIgnored let levelID: LevelPreset.ID
     @ObservationIgnored private weak var navigator: AppNavigating?
     @ObservationIgnored private var input: Double = 0
+    @ObservationIgnored private let jetpackDuration: Double
 
     init(levelID: LevelPreset.ID,
          library: LevelLibrary,
@@ -39,6 +40,7 @@ final class GameplayViewModel {
          rules: GameRules = .standard,
          makeLevel: @escaping (LevelPreset) -> [Platform] = { PresetLevelProvider(preset: $0).makeLevel() }) {
         self.levelID = levelID
+        self.jetpackDuration = max(rules.jetpackDuration, 0.01)
         self.library = library
         self.navigator = navigator
         self.round = GameRound(levelID: levelID,
@@ -132,10 +134,15 @@ final class GameplayViewModel {
                                          type: platform.type,
                                          isBroken: platform.isBroken)
             },
+            pickups: session.pickups
+                .filter { !$0.isCollected }
+                .map { GameFrame.PickupSprite(id: $0.id, kind: $0.kind,
+                                              x: $0.position.x, y: $0.position.y) },
             playerX: player.position.x,
             playerY: player.position.y,
             playerWidth: player.width,
             isFalling: player.isFalling,
+            jetpackLeft: session.hasJetpack ? session.jetpackTimeLeft / jetpackDuration : 0,
             // камера не опускається: тримається за найвищою точкою гравця
             cameraBottom: session.maxHeight - Self.cameraOffset,
             score: session.score,

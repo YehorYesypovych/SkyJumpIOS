@@ -10,7 +10,7 @@ enum GameConfig {
 }
 
 /// Точка / вектор на площині. Struct — тип-значення: при присвоєнні копіюється.
-struct Vector2 {
+struct Vector2: Equatable {
     var x: Double
     var y: Double
 

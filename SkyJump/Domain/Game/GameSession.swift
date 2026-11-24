@@ -9,6 +9,9 @@ final class GameSession {
     private(set) var brokenPlatformsCount = 0
     private(set) var elapsedTime: Double = 0
     private(set) var outcome: GameOutcome = .playing
+    private(set) var pickups: [Pickup]
+    /// Скільки секунд ще працює джетпак (0 — не працює).
+    private(set) var jetpackTimeLeft: Double = 0
     /// Висота верхньої платформи рівня на момент старту (0 — платформ немає).
     let topHeight: Double
     private let rules: GameRules
@@ -22,6 +25,8 @@ final class GameSession {
     private let footWidth: Double
 
     var score: Int { Int(maxHeight) }
+
+    var hasJetpack: Bool { jetpackTimeLeft > 0 }
 
     /// Прогрес до верхньої платформи: 0…1.
     var progress: Double {
@@ -41,8 +46,10 @@ final class GameSession {
          landingStrategies: [PlatformType: LandingStrategy]? = nil,
          observers: [GameEventObserver] = [],
          completesAtTop: Bool = false,
-         footWidth: Double = 0) {
+         footWidth: Double = 0,
+         pickups: [Pickup] = []) {
         self.platforms = platforms
+        self.pickups = pickups
         self.topHeight = platforms.map { $0.position.y }.max() ?? 0
         self.completesAtTop = completesAtTop
         self.footWidth = max(footWidth, 0)
@@ -78,13 +85,19 @@ final class GameSession {
             platforms[index].update(deltaTime: deltaTime)
         }
 
+        if hasJetpack {
+            jetpackTimeLeft = max(jetpackTimeLeft - deltaTime, 0)
+            player.fly(upwardSpeed: rules.jetpackVelocity)
+        }
+
         let previousY = player.position.y
         player.update(deltaTime: deltaTime)
 
-        // Приземлення можливе лише під час падіння
-        if player.isFalling, let index = landingPlatformIndex(previousY: previousY) {
+        // Приземлення можливе лише під час падіння (з джетпаком гравець летить крізь платформи)
+        if !hasJetpack, player.isFalling, let index = landingPlatformIndex(previousY: previousY) {
             handleLanding(onPlatformAt: index)
         }
+        collectPickups()
 
         if player.position.y > maxHeight {
             maxHeight = player.position.y
@@ -172,6 +185,19 @@ final class GameSession {
         let removed = countBefore - platforms.count
         if removed > 0 {
             emit(.platformsRemoved(count: removed))
+        }
+        pickups.removeAll { $0.position.y < bottomEdge }
+    }
+
+    private func collectPickups() {
+        for index in pickups.indices where !pickups[index].isCollected {
+            guard pickups[index].isTouched(byPlayerAt: player.position.x, feetY: player.position.y) else { continue }
+            pickups[index].collect()
+            switch pickups[index].kind {
+            case .jetpack:
+                jetpackTimeLeft = rules.jetpackDuration
+                emit(.jetpackPicked)
+            }
         }
     }
 

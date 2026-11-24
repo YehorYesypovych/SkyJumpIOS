@@ -13,6 +13,7 @@ final class GameRound {
     private let rules: GameRules
     private let playerName: String
     private let makeLevel: (LevelPreset) -> [Platform]
+    private let makePickups: ([Platform], LevelPreset) -> [Pickup]
 
     /// makeLevel — як отримати платформи з пресета; у тестах підставляється готовий рівень.
     init(levelID: LevelPreset.ID,
@@ -20,13 +21,15 @@ final class GameRound {
          scoreStore: any ScoreStoring,
          rules: GameRules = .standard,
          playerName: String = "Doodler",
-         makeLevel: @escaping (LevelPreset) -> [Platform] = { PresetLevelProvider(preset: $0).makeLevel() }) {
+         makeLevel: @escaping (LevelPreset) -> [Platform] = { PresetLevelProvider(preset: $0).makeLevel() },
+         makePickups: @escaping ([Platform], LevelPreset) -> [Pickup] = { GameRound.makeJetpacks(on: $0, seed: $1.seed) }) {
         self.levelID = levelID
         self.library = library
         self.scoreStore = scoreStore
         self.rules = rules
         self.playerName = playerName
         self.makeLevel = makeLevel
+        self.makePickups = makePickups
     }
 
     /// Ширина «ніг» персонажа в грі: приземлення там, де персонаж візуально стоїть на платформі.
@@ -44,11 +47,35 @@ final class GameRound {
             session = nil
             return
         }
+        let platforms = makeLevel(level)
         session = GameSession(playerName: playerName,
-                              platforms: makeLevel(level),
+                              platforms: platforms,
                               rules: rules,
                               completesAtTop: true,
-                              footWidth: Self.footWidth)
+                              footWidth: Self.footWidth,
+                              pickups: makePickups(platforms, level))
+    }
+
+    /// Джетпаки на рівні: один приблизно на 15 платформ, лише на звичайних платформах
+    /// не біля старту й не біля верху. Розташування залежить від seed, тож рівень повторюється.
+    static func makeJetpacks(on platforms: [Platform], seed: UInt64) -> [Pickup] {
+        let count = platforms.count / 15
+        guard count > 0 else { return [] }
+
+        var generator = SeededRandomGenerator(seed: seed &+ 0x5EED)
+        let candidates = platforms.filter { platform in
+            platform.type == .normal && platform.id >= 3 && platform.id < platforms.count - 3
+        }
+        return candidates
+            .shuffled(using: &generator)
+            .prefix(count)
+            .sorted { $0.position.y < $1.position.y }
+            .enumerated()
+            .map { index, platform in
+                Pickup(id: index, kind: .jetpack,
+                       x: platform.position.x + platform.width / 2,
+                       y: platform.position.y)
+            }
     }
 
     /// Якщо гра щойно закінчилась — записує результат. Повертає true лише в момент завершення.

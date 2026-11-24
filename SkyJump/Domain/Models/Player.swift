@@ -39,6 +39,11 @@ final class Player: GameObject {
         jumpsCount += 1
     }
 
+    /// Підйом джетпаком: стала швидкість угору, не рахується як стрибок.
+    func fly(upwardSpeed: Double) {
+        velocity.y = upwardSpeed
+    }
+
     /// direction: -1 — вліво, 0 — стоїмо, 1 — вправо
     func move(direction: Double) {
         velocity.x = direction * GameConfig.horizontalSpeed

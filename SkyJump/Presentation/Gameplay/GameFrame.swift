@@ -12,11 +12,20 @@ struct GameFrame: Equatable {
         let isBroken: Bool
     }
 
+    struct PickupSprite: Identifiable, Equatable {
+        let id: Int
+        let kind: Pickup.Kind
+        let x: Double          // центр
+        let y: Double          // низ
+    }
+
     var platforms: [PlatformSprite] = []
+    var pickups: [PickupSprite] = []
     var playerX: Double = GameConfig.worldWidth / 2   // центр гравця
     var playerY: Double = 0                           // рівень «ніг»
     var playerWidth: Double = GameConfig.playerWidth
     var isFalling = false
+    var jetpackLeft: Double = 0    // 0…1 — скільки залишилось джетпака (0 — немає)
     var cameraBottom: Double = 0   // висота світу на нижньому краю екрана
     var score = 0
     var progress: Double = 0       // 0…1 до верхньої платформи

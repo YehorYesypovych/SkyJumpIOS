@@ -8,6 +8,8 @@ struct GameRules {
     let jumpVelocity: Double       // швидкість звичайного стрибка (px/s)
     let springMultiplier: Double   // у скільки разів пружина підсилює стрибок
     var screenHeight: Double       // висота видимої області: нижче — гравець падає
+    var jetpackVelocity: Double = 1100   // швидкість підйому з джетпаком (px/s)
+    var jetpackDuration: Double = 2.5    // скільки секунд працює джетпак
 
     static let standard = GameRules(gravity: -1500,
                                     jumpVelocity: 750,

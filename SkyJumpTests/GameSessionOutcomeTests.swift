@@ -145,3 +145,61 @@ struct GameSessionOutcomeTests {
         #expect(session.player.jumpsCount == 0)
     }
 }
+
+@MainActor
+struct JetpackTests {
+
+    @Test func jetpackLiftsPlayerThroughPlatforms() {
+        let spy = SpyObserver()
+        let platforms = [
+            Platform(id: 0, x: 160, y: 0),
+            Platform(id: 1, x: 160, y: 5000)
+        ]
+        // джетпак просто над стартом: гравець підбирає його в першому ж стрибку
+        let jetpack = Pickup(id: 0, kind: .jetpack, x: 200, y: 100)
+        let session = GameSession(playerName: "Doodler", platforms: platforms,
+                                  observers: [spy], completesAtTop: true,
+                                  footWidth: GameRound.footWidth, pickups: [jetpack])
+
+        for _ in 0..<60 {
+            session.step(deltaTime: 1.0 / 60.0)
+        }
+
+        #expect(session.hasJetpack)
+        #expect(session.pickups.first?.isCollected == true)
+        #expect(session.maxHeight > 600)
+        #expect(spy.events.contains { if case .jetpackPicked = $0 { return true } else { return false } })
+    }
+
+    @Test func jetpackRunsOut() {
+        let platforms = [Platform(id: 0, x: 160, y: 0), Platform(id: 1, x: 160, y: 50_000)]
+        let session = GameSession(playerName: "Doodler", platforms: platforms, completesAtTop: true,
+                                  pickups: [Pickup(id: 0, kind: .jetpack, x: 200, y: 100)])
+
+        for _ in 0..<(60 * 4) {
+            session.step(deltaTime: 1.0 / 60.0)
+        }
+
+        #expect(!session.hasJetpack)
+        #expect(session.jetpackTimeLeft == 0)
+    }
+
+    @Test func jetpacksArePlacedBySeed() {
+        let platforms = RandomLevelProvider(platformCount: 40,
+                                            generator: SeededRandomGenerator(seed: 42)).makeLevel()
+
+        let first = GameRound.makeJetpacks(on: platforms, seed: 42)
+        let second = GameRound.makeJetpacks(on: platforms, seed: 42)
+
+        #expect(first.count == 2)
+        #expect(first == second)
+        #expect(first.allSatisfy { pickup in
+            platforms.contains { $0.type == .normal && $0.position.y == pickup.position.y }
+        })
+    }
+
+    @Test func shortLevelHasNoJetpacks() {
+        let platforms = (0..<10).map { Platform(id: $0, x: 160, y: Double($0) * 100) }
+        #expect(GameRound.makeJetpacks(on: platforms, seed: 1).isEmpty)
+    }
+}
