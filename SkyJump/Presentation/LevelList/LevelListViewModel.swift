@@ -41,6 +41,10 @@ final class LevelListViewModel {
         navigator?.showDemo()
     }
 
+    func openRadio() {
+        navigator?.showRadio()
+    }
+
     func delete(at offsets: IndexSet) {
         let ids = offsets.map { levels[$0].id }
         ids.forEach { library.delete(id: $0) }

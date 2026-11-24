@@ -64,6 +64,11 @@ struct LevelListView: View {
                 }
             }
             ToolbarItem(placement: .topBarTrailing) {
+                Button("Радіо", systemImage: "radio") {
+                    viewModel.openRadio()
+                }
+            }
+            ToolbarItem(placement: .topBarTrailing) {
                 Button("Додати рівень", systemImage: "plus") {
                     viewModel.create()
                 }

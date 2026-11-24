@@ -8,6 +8,9 @@ struct AppDependencies {
     let scoreStore: any ScoreStoring
     /// Бібліотека рівнів «Мої рівні» — спільна для всіх екранів.
     let library: LevelLibrary
+    /// Радіо — одне на весь застосунок; каталог станцій — через протокол.
+    let radio: RadioPlayer
+    let radioProvider: any RadioStationProviding
 
     /// Залежності для реального запуску застосунку.
     /// Аргумент запуску `-randomLevel` (Edit Scheme → Run → Arguments) вмикає випадковий рівень.
@@ -20,7 +23,9 @@ struct AppDependencies {
         return AppDependencies(levelProvider: levelProvider,
                                simulator: GameSimulationService(observers: [ConsoleEventLogger()]),
                                scoreStore: UserDefaultsScoreStore(defaults: .standard),
-                               library: LevelLibrary())
+                               library: LevelLibrary(),
+                               radio: RadioPlayer(streamer: AVPlayerStreamer()),
+                               radioProvider: RadioBrowserClient())
     }
 
     func makeDemoViewModel() -> DemoViewModel {

@@ -8,6 +8,11 @@ struct ScreenFactory {
     func makeLevelList() -> some View {
         LevelListView(viewModel: LevelListViewModel(library: dependencies.library,
                                                     navigator: navigator))
+            .safeAreaInset(edge: .bottom) {
+                MiniPlayerBar(player: dependencies.radio) { [navigator] in
+                    navigator.showRadio()
+                }
+            }
     }
 
     @ViewBuilder
@@ -21,7 +26,8 @@ struct ScreenFactory {
             GameplayView(viewModel: GameplayViewModel(levelID: id,
                                                       library: dependencies.library,
                                                       scoreStore: dependencies.scoreStore,
-                                                      navigator: navigator))
+                                                      navigator: navigator),
+                         radio: dependencies.radio)
         case .game(let id):
             GameView(viewModel: GameViewModel(levelID: id,
                                               library: dependencies.library,
@@ -30,6 +36,9 @@ struct ScreenFactory {
                                               navigator: navigator))
         case .demo:
             DemoView(viewModel: dependencies.makeDemoViewModel())
+        case .radio:
+            RadioView(viewModel: RadioViewModel(provider: dependencies.radioProvider,
+                                                player: dependencies.radio))
         }
     }
 

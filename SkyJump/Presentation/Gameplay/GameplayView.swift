@@ -3,13 +3,16 @@ import SwiftUI
 /// Справжня гра: поле малюється на Canvas щокадру, керування — утримання лівої чи правої половини екрана.
 struct GameplayView: View {
     @State private var viewModel: GameplayViewModel
+    /// Радіо застосунку: на паузі притишується, на екрані паузи можна перемкнути станцію.
+    let radio: RadioPlayer
     @State private var clock = FrameClock()
     @State private var hasTouched = false
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    init(viewModel: GameplayViewModel) {
+    init(viewModel: GameplayViewModel, radio: RadioPlayer) {
         _viewModel = State(initialValue: viewModel)
+        self.radio = radio
     }
 
     var body: some View {
@@ -48,6 +51,10 @@ struct GameplayView: View {
         }
         .onDisappear {
             viewModel.pause()
+            radio.setDucked(false)
+        }
+        .onChange(of: viewModel.isPaused) { _, isPaused in
+            radio.setDucked(isPaused)
         }
         .onChange(of: scenePhase) { _, phase in
             // згорнули застосунок або прийшов дзвінок — гра стає на паузу
@@ -142,6 +149,20 @@ struct GameplayView: View {
             ProgressBar(value: viewModel.frame.progress)
                 .accessibilityLabel("Прогрес до вершини")
 
+            if radio.state == .playing, let station = radio.current {
+                HStack(spacing: 6) {
+                    Text("📻")
+                    Text(station.name)
+                        .lineLimit(1)
+                }
+                .font(.caption.weight(.semibold))
+                .padding(.horizontal, 10)
+                .padding(.vertical, 4)
+                .background(.ultraThinMaterial, in: Capsule())
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .accessibilityLabel("Радіо: \(station.name)")
+            }
+
             if viewModel.frame.jetpackLeft > 0 {
                 HStack(spacing: 8) {
                     Text("🚀")
@@ -188,9 +209,52 @@ struct GameplayView: View {
                     viewModel.backToLevel()
                 }
                 .font(.headline)
+
+                if radio.current != nil {
+                    radioControls
+                        .padding(.top, 12)
+                }
             }
             .padding()
         }
+    }
+}
+
+extension GameplayView {
+    /// Радіо на екрані паузи: поточна станція, пуск/стоп і наступна станція.
+    private var radioControls: some View {
+        HStack(spacing: 12) {
+            StationArtwork(station: radio.current, size: 40)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(radio.current?.name ?? "")
+                    .font(.subheadline.weight(.semibold))
+                    .lineLimit(1)
+                Text(radio.isActive ? "Радіо грає" : "Радіо вимкнено")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 0)
+            Button {
+                radio.toggle()
+            } label: {
+                Image(systemName: radio.isActive ? "stop.fill" : "play.fill")
+                    .frame(width: 32, height: 32)
+            }
+            .accessibilityLabel(radio.isActive ? "Зупинити радіо" : "Увімкнути радіо")
+            if radio.queue.count > 1 {
+                Button {
+                    radio.playNext()
+                } label: {
+                    Image(systemName: "forward.fill")
+                        .frame(width: 32, height: 32)
+                }
+                .accessibilityLabel("Наступна станція")
+            }
+        }
+        .foregroundStyle(.white)
+        .padding(12)
+        .frame(maxWidth: 320)
+        .cardStyle(cornerRadius: 20)
     }
 }
 
@@ -410,6 +474,7 @@ private enum GameRenderer {
         GameplayView(viewModel: GameplayViewModel(levelID: library.levels[0].id,
                                                   library: library,
                                                   scoreStore: InMemoryScoreStore(),
-                                                  navigator: router))
+                                                  navigator: router),
+                     radio: .preview())
     }
 }

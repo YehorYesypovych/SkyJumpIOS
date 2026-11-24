@@ -41,7 +41,9 @@ extension AppDependencies {
         AppDependencies(levelProvider: StubLevelProvider(),
                         simulator: StubGameSimulator(),
                         scoreStore: InMemoryScoreStore(bestScore: 500),
-                        library: LevelLibrary())
+                        library: LevelLibrary(),
+                        radio: .preview(),
+                        radioProvider: StubRadioProvider())
     }
 
     /// Справжня симуляція на тестовому рівні — замінено лише джерело рівня і сховище.
@@ -49,6 +51,50 @@ extension AppDependencies {
         AppDependencies(levelProvider: StubLevelProvider(),
                         simulator: GameSimulationService(),
                         scoreStore: InMemoryScoreStore(),
-                        library: LevelLibrary())
+                        library: LevelLibrary(),
+                        radio: .preview(),
+                        radioProvider: StubRadioProvider())
     }
 }
+
+/// Програвач без звуку: одразу «грає», нічого не завантажуючи.
+final class SilentStreamer: AudioStreaming {
+    var onStateChange: ((StreamState) -> Void)?
+    var volume: Float = 1
+
+    func play(url: URL) {
+        onStateChange?(.playing)
+    }
+
+    func stop() {
+        onStateChange?(.idle)
+    }
+}
+
+/// Заготовлені станції для Preview — без мережі.
+struct StubRadioProvider: RadioStationProviding {
+    static let stations: [RadioStation] = [
+        RadioStation(id: "stub-1", name: "Neon Beach FM", streamURL: URL(string: "https://example.com/neon.mp3")!,
+                     country: "United States", countryCode: "US", tags: ["synthwave", "80s"],
+                     faviconURL: nil, bitrate: 128),
+        RadioStation(id: "stub-2", name: "Palm Drive Radio", streamURL: URL(string: "https://example.com/palm.mp3")!,
+                     country: "Germany", countryCode: "DE", tags: ["retrowave"],
+                     faviconURL: nil, bitrate: 192),
+        RadioStation(id: "stub-3", name: "Vapor Sunset", streamURL: URL(string: "https://example.com/vapor.aac")!,
+                     country: "Ukraine", countryCode: "UA", tags: ["vaporwave", "chillwave"],
+                     faviconURL: nil, bitrate: 96)
+    ]
+
+    func stations(for genres: [RadioGenre]) async throws -> [RadioStation] {
+        Self.stations
+    }
+}
+
+extension RadioPlayer {
+    /// Радіо для Preview: без звуку, з окремим сховищем, щоб не чіпати справжні налаштування.
+    static func preview() -> RadioPlayer {
+        RadioPlayer(streamer: SilentStreamer(),
+                    defaults: UserDefaults(suiteName: "preview.radio") ?? .standard)
+    }
+}
+

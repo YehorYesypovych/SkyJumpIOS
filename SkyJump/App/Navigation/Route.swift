@@ -6,6 +6,7 @@ enum Route: Hashable {
     case play(LevelPreset.ID)       // справжня гра з керуванням
     case game(LevelPreset.ID)       // симуляція рівня (8 с без керування)
     case demo
+    case radio
 }
 
 /// Модальні екрани.
