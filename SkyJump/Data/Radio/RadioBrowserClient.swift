@@ -86,7 +86,8 @@ struct RadioBrowserClient: RadioStationProviding {
 }
 
 /// Станція у форматі відповіді Radio Browser (лише потрібні поля).
-struct RadioBrowserStationDTO: Decodable {
+/// `nonisolated`: декодування не прив'язане до головного потоку, тому модель можна віддати в `HTTPClient.send`.
+nonisolated struct RadioBrowserStationDTO: Decodable, Sendable {
     let stationuuid: String
     let name: String
     let url: String
