@@ -182,4 +182,10 @@ sequenceDiagram
 **Відео** `scenario.mov` (iPhone 17e, прискорено ×10, ≈1 хв 50 с): список → «+» → створення рівня «Небо» → деталі → розгортання складу → «Редагувати» → спроба закрити свайпом зі змінами → «Зберегти» → деталі оновлені → «Грати» → «Назад» → список. Записано `xcrun simctl io booted recordVideo`.
 
 ## 8. Хто що робив
-<!-- Частина A, у фіналі -->
+
+| Учасник | Що робив |
+|---|---|
+| Kolya Kulchytskyi | Каркас навігації: `Route`, `Sheet`, `AppNavigating`, `AppRouter`, `RootView`, `ScreenFactory`; бібліотека рівнів `LevelLibrary`, модель `LevelPreset`, генерація рівня з пресета (`PresetLevelProvider`); екран списку рівнів; екран гри з анімацією нового рекорду; тести роутера, бібліотеки, списку і гри; розділи 1, 2, 3, 5.1 |
+| Єгор Єсипович | Екран деталей рівня з анімованим розгортанням складу рівня; модальний редактор рівня (створення й редагування через чернетку, валідація, робота з клавіатурою); тести редактора і деталей; перевірка інтерфейсу на двох розмірах екрана, скриншоти й відео; розділи 4, 5.2, 6, 7 |
+
+**Коміти й теги:** каркас — тег [`lab3-skeleton`](https://github.com/YehorYesypovych/SkyJumpIOS/tree/lab3-skeleton); частина A — [PR #3](https://github.com/YehorYesypovych/SkyJumpIOS/pull/3); частина B — [PR #4](https://github.com/YehorYesypovych/SkyJumpIOS/pull/4); фінальний стан — тег [`lab3`](https://github.com/YehorYesypovych/SkyJumpIOS/tree/lab3).

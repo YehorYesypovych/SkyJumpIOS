@@ -76,15 +76,18 @@ private struct LevelRow: View {
 }
 
 #Preview("Список") {
+    // Роутер тримається тут, бо ViewModel зберігає навігатор слабким посиланням
+    @Previewable @State var router = AppRouter()
     NavigationStack {
         LevelListView(viewModel: LevelListViewModel(library: LevelLibrary(),
-                                                    navigator: AppRouter()))
+                                                    navigator: router))
     }
 }
 
 #Preview("Порожній список") {
+    @Previewable @State var router = AppRouter()
     NavigationStack {
         LevelListView(viewModel: LevelListViewModel(library: LevelLibrary(levels: []),
-                                                    navigator: AppRouter()))
+                                                    navigator: router))
     }
 }

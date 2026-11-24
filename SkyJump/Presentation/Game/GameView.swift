@@ -150,12 +150,14 @@ struct GameView: View {
 }
 
 #Preview {
+    // Роутер тримається тут, бо ViewModel зберігає навігатор слабким посиланням
+    @Previewable @State var router = AppRouter()
     let dependencies = AppDependencies.previewWithRealSimulation()
     NavigationStack {
         GameView(viewModel: GameViewModel(levelID: dependencies.library.levels[0].id,
                                           library: dependencies.library,
                                           simulator: dependencies.simulator,
                                           scoreStore: dependencies.scoreStore,
-                                          navigator: AppRouter()))
+                                          navigator: router))
     }
 }
