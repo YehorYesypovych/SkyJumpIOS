@@ -8,11 +8,23 @@ final class GameSession {
     private(set) var maxHeight: Double = 0
     private(set) var brokenPlatformsCount = 0
     private(set) var elapsedTime: Double = 0
+    private(set) var outcome: GameOutcome = .playing
+    /// Висота верхньої платформи рівня на момент старту (0 — платформ немає).
+    let topHeight: Double
     private let rules: GameRules
     private let landingStrategies: [PlatformType: LandingStrategy]
     private var observers: [WeakObserver] = []
+    /// Режим справжньої гри: досягти висоти верхньої платформи — перемога.
+    /// У симуляції вимкнено, тож поведінка демо-сценарію не змінюється.
+    private let completesAtTop: Bool
 
     var score: Int { Int(maxHeight) }
+
+    /// Прогрес до верхньої платформи: 0…1.
+    var progress: Double {
+        guard topHeight > 0 else { return 0 }
+        return min(maxHeight / topHeight, 1)
+    }
 
     /// Найвища платформа — Optional, бо масив може бути порожнім.
     var highestPlatform: Platform? {
@@ -20,11 +32,15 @@ final class GameSession {
     }
 
     /// landingStrategies: nil — стандартний набір за правилами rules.
+    /// completesAtTop: true — гра закінчується перемогою на висоті верхньої платформи.
     init(playerName: String, platforms: [Platform],
          rules: GameRules = .standard,
          landingStrategies: [PlatformType: LandingStrategy]? = nil,
-         observers: [GameEventObserver] = []) {
+         observers: [GameEventObserver] = [],
+         completesAtTop: Bool = false) {
         self.platforms = platforms
+        self.topHeight = platforms.map { $0.position.y }.max() ?? 0
+        self.completesAtTop = completesAtTop
         self.rules = rules
         self.landingStrategies = landingStrategies ?? LandingStrategies.standard(rules: rules)
         self.observers = observers.map { WeakObserver($0) }
@@ -49,7 +65,7 @@ final class GameSession {
 
     /// Один кадр гри.
     func step(deltaTime: Double, input: Double = 0) {
-        guard player.isAlive else { return }
+        guard player.isAlive, outcome == .playing else { return }
         elapsedTime += deltaTime
 
         player.move(direction: input)
@@ -68,17 +84,25 @@ final class GameSession {
         if player.position.y > maxHeight {
             maxHeight = player.position.y
         }
+
+        if completesAtTop, topHeight > 0, maxHeight >= topHeight {
+            outcome = .won
+            emit(.levelCompleted)
+            return
+        }
+
         removePlatformsBelowScreen()
 
         if player.position.y < maxHeight - rules.screenHeight {
             player.die()
+            outcome = .lost
             emit(.playerFell)
         }
     }
 
     /// Запуск симуляції на заданий час (поки гравець живий).
     func run(duration: Double, deltaTime: Double = 1.0 / 60.0) {
-        while elapsedTime < duration && player.isAlive {
+        while elapsedTime < duration && player.isAlive && outcome == .playing {
             step(deltaTime: deltaTime)
         }
         emit(.finished)

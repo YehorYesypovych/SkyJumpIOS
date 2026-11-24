@@ -7,6 +7,7 @@ enum GameEvent {
     case platformBroken(platformID: Int)
     case platformsRemoved(count: Int)
     case playerFell
+    case levelCompleted
     case finished
 }
 
@@ -30,6 +31,8 @@ extension GameEvent {
             return "Прибрано платформ нижче екрана: \(count)"
         case .playerFell:
             return "Гравець впав. Гру закінчено"
+        case .levelCompleted:
+            return "Рівень пройдено!"
         case .finished:
             return "Симуляцію завершено"
         }
