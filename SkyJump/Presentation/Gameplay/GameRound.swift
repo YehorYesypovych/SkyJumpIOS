@@ -29,6 +29,9 @@ final class GameRound {
         self.makeLevel = makeLevel
     }
 
+    /// Ширина «ніг» персонажа в грі: приземлення там, де персонаж візуально стоїть на платформі.
+    static let footWidth = GameConfig.playerWidth * 0.6
+
     var level: LevelPreset? { library.level(id: levelID) }
 
     var outcome: GameOutcome { session?.outcome ?? .lost }
@@ -44,7 +47,8 @@ final class GameRound {
         session = GameSession(playerName: playerName,
                               platforms: makeLevel(level),
                               rules: rules,
-                              completesAtTop: true)
+                              completesAtTop: true,
+                              footWidth: Self.footWidth)
     }
 
     /// Якщо гра щойно закінчилась — записує результат. Повертає true лише в момент завершення.

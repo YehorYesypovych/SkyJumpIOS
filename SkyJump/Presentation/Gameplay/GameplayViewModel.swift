@@ -14,7 +14,17 @@ final class GameplayViewModel {
     /// Найбільший крок фізики за кадр: після паузи чи підвисання гра не «перестрибує» платформи.
     static let maxDeltaTime = 1.0 / 30.0
     /// На якій висоті над нижнім краєм екрана тримається найвища точка гравця.
-    static let cameraOffset = 250.0
+    static let cameraOffset = 320.0
+    /// Наскільки нижче краю екрана має опуститися гравець, щоб гра закінчилась (≈ зріст персонажа).
+    static let fallMargin = 60.0
+
+    /// Правила для справжньої гри: межа падіння збігається з нижнім краєм екрана.
+    /// Інакше гравець падав за екран, приземлявся на невидиму платформу і повертався.
+    static func gameplayRules(from rules: GameRules) -> GameRules {
+        var gameplay = rules
+        gameplay.screenHeight = cameraOffset + fallMargin
+        return gameplay
+    }
 
     @ObservationIgnored private let round: GameRound
     @ObservationIgnored private let library: LevelLibrary
@@ -34,7 +44,7 @@ final class GameplayViewModel {
         self.round = GameRound(levelID: levelID,
                                library: library,
                                scoreStore: scoreStore,
-                               rules: rules,
+                               rules: Self.gameplayRules(from: rules),
                                makeLevel: makeLevel)
     }
 

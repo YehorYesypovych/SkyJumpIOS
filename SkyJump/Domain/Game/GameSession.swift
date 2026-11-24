@@ -17,6 +17,9 @@ final class GameSession {
     /// Режим справжньої гри: досягти висоти верхньої платформи — перемога.
     /// У симуляції вимкнено, тож поведінка демо-сценарію не змінюється.
     private let completesAtTop: Bool
+    /// Ширина «ніг» гравця для приземлення. 0 — лише центр (як у симуляції),
+    /// у грі — частина ширини персонажа, щоб приземлення збігалося з тим, що видно на екрані.
+    private let footWidth: Double
 
     var score: Int { Int(maxHeight) }
 
@@ -37,10 +40,12 @@ final class GameSession {
          rules: GameRules = .standard,
          landingStrategies: [PlatformType: LandingStrategy]? = nil,
          observers: [GameEventObserver] = [],
-         completesAtTop: Bool = false) {
+         completesAtTop: Bool = false,
+         footWidth: Double = 0) {
         self.platforms = platforms
         self.topHeight = platforms.map { $0.position.y }.max() ?? 0
         self.completesAtTop = completesAtTop
+        self.footWidth = max(footWidth, 0)
         self.rules = rules
         self.landingStrategies = landingStrategies ?? LandingStrategies.standard(rules: rules)
         self.observers = observers.map { WeakObserver($0) }
@@ -128,10 +133,18 @@ final class GameSession {
     private func landingPlatformIndex(previousY: Double) -> Int? {
         platforms.firstIndex { platform in
             !platform.isBroken
-                && platform.contains(x: player.position.x)
+                && isStanding(on: platform)
                 && previousY >= platform.position.y
                 && player.position.y <= platform.position.y
         }
+    }
+
+    /// Чи потрапляють «ноги» гравця на платформу по горизонталі.
+    private func isStanding(on platform: Platform) -> Bool {
+        guard footWidth > 0 else { return platform.contains(x: player.position.x) }
+        let half = footWidth / 2
+        return player.position.x + half >= platform.position.x
+            && player.position.x - half <= platform.position.x + platform.width
     }
 
     private func handleLanding(onPlatformAt index: Int) {
