@@ -28,6 +28,12 @@ struct RadioView: View {
                 }
             } header: {
                 VStack(spacing: 8) {
+                    if viewModel.checkScenario != .live {
+                        Label("Перевірка: \(viewModel.checkScenario.title)", systemImage: viewModel.checkScenario.systemImage)
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(Theme.sunsetOrange)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
                     RadioVolumeSlider(player: viewModel.player)
                         .padding(.horizontal, 4)
                     genreChips
@@ -39,6 +45,13 @@ struct RadioView: View {
         .appBackground()
         .overlay { stateOverlay }
         .navigationTitle("Радіо")
+        #if DEBUG
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                checkMenu
+            }
+        }
+        #endif
         .task { await viewModel.loadIfNeeded() }
         .refreshable { await viewModel.load() }
         .safeAreaInset(edge: .bottom) {
@@ -47,6 +60,26 @@ struct RadioView: View {
             }
         }
     }
+
+    #if DEBUG
+    /// Меню перевірки станів (лише Debug-збірка): справжній API або контрольована відповідь.
+    private var checkMenu: some View {
+        Menu {
+            Picker("Джерело", selection: Binding(
+                get: { viewModel.checkScenario },
+                set: { scenario in Task { await viewModel.useCheckScenario(scenario) } }
+            )) {
+                ForEach(RadioCheckScenario.allCases) { scenario in
+                    Label(scenario.title, systemImage: scenario.systemImage)
+                        .tag(scenario)
+                }
+            }
+        } label: {
+            Image(systemName: viewModel.checkScenario == .live ? "ladybug" : "ladybug.fill")
+        }
+        .accessibilityLabel("Режим перевірки станів")
+    }
+    #endif
 
     private var genreChips: some View {
         ScrollView(.horizontal, showsIndicators: false) {
