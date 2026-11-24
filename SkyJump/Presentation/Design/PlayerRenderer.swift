@@ -70,11 +70,14 @@ enum PlayerRenderer {
             drawLaurel(body: body, line: line, in: &context)
         case .doodle:
             drawEyes(body: body, eyesY: eyesY, isFalling: pose.isFalling, in: &context)
-            drawNose(body: body, eyesY: eyesY, outline: outline, line: line, in: &context)
         }
 
         if skin != .diver {
             drawSmile(body: body, y: eyesY + width * 0.34, line: line, in: &context)
+        }
+        if skin == .doodle {
+            drawCigarette(body: body, mouthY: eyesY + width * 0.36, phase: pose.flicker,
+                          outline: outline, line: line, in: &context)
         }
     }
 
@@ -162,12 +165,44 @@ enum PlayerRenderer {
         context.fill(leaves, with: .color(gold))
     }
 
-    private static func drawNose(body: CGRect, eyesY: CGFloat, outline: Color, line: CGFloat,
-                                 in context: inout GraphicsContext) {
+    /// Цигарка в кутику рота і дим, що в'ється вгору. phase зсуває хвилі диму від кадру до кадру.
+    private static func drawCigarette(body: CGRect, mouthY: CGFloat, phase: CGFloat, outline: Color,
+                                      line: CGFloat, in context: inout GraphicsContext) {
         let width = body.width
-        let nose = CGRect(x: body.maxX - width * 0.12, y: eyesY + width * 0.18, width: width * 0.32, height: width * 0.14)
-        context.fill(Path(roundedRect: nose, cornerRadius: width * 0.07), with: .color(Color(red: 0.50, green: 0.78, blue: 0.20)))
-        context.stroke(Path(roundedRect: nose, cornerRadius: width * 0.07), with: .color(outline), lineWidth: line)
+        let startX: CGFloat = body.midX + width * 0.10
+        let length: CGFloat = width * 0.48
+        let thickness: CGFloat = width * 0.09
+
+        // фільтр і паперова частина
+        let filter = CGRect(x: startX, y: mouthY - thickness / 2, width: length * 0.3, height: thickness)
+        let paper = CGRect(x: filter.maxX, y: filter.minY, width: length * 0.62, height: thickness)
+        let ember = CGRect(x: paper.maxX, y: filter.minY, width: length * 0.08, height: thickness)
+        context.fill(Path(roundedRect: filter, cornerRadius: thickness * 0.2),
+                     with: .color(Color(red: 0.93, green: 0.60, blue: 0.25)))
+        context.fill(Path(paper), with: .color(.white))
+        context.fill(Path(roundedRect: ember, cornerRadius: thickness * 0.3),
+                     with: .color(Color(red: 1.0, green: 0.30, blue: 0.15)))
+        let whole = CGRect(x: filter.minX, y: filter.minY, width: ember.maxX - filter.minX, height: thickness)
+        context.stroke(Path(roundedRect: whole, cornerRadius: thickness * 0.3), with: .color(outline),
+                       lineWidth: line * 0.6)
+
+        // дим: дві хвилясті цівки, що розсіюються вгорі
+        let tip = CGPoint(x: ember.midX, y: ember.minY)
+        let rise: CGFloat = width * 0.9
+        for (index, sway) in [CGFloat(1), CGFloat(-0.7)].enumerated() {
+            let offset: CGFloat = CGFloat(index) * width * 0.08
+            let wave: CGFloat = width * 0.12 * sway * (phase * 2 - 1)
+            var smoke = Path()
+            smoke.move(to: CGPoint(x: tip.x + offset * 0.3, y: tip.y))
+            smoke.addCurve(to: CGPoint(x: tip.x + offset + width * 0.05, y: tip.y - rise),
+                           control1: CGPoint(x: tip.x + width * 0.18 + wave, y: tip.y - rise * 0.3),
+                           control2: CGPoint(x: tip.x - width * 0.14 - wave, y: tip.y - rise * 0.65))
+            context.stroke(smoke,
+                           with: .linearGradient(Gradient(colors: [Color.white.opacity(0.75), Color.white.opacity(0)]),
+                                                 startPoint: tip,
+                                                 endPoint: CGPoint(x: tip.x, y: tip.y - rise)),
+                           style: StrokeStyle(lineWidth: max(line * (1.4 - CGFloat(index) * 0.4), 1), lineCap: .round))
+        }
     }
 
     private static func drawSmile(body: CGRect, y: CGFloat, line: CGFloat, in context: inout GraphicsContext) {
