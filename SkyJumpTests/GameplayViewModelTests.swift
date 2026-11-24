@@ -114,3 +114,38 @@ struct GameplayViewModelTests {
         #expect(navigator.calls == ["pop", "popToRoot"])
     }
 }
+
+@MainActor
+struct GameplayPerformanceTests {
+
+    @Test func hudFollowsFrameWithRounding() {
+        let library = LevelLibrary()
+        let navigator = SpyNavigator()
+        let viewModel = GameplayViewModel(levelID: library.levels[0].id, library: library,
+                                          scoreStore: InMemoryScoreStore(), navigator: navigator)
+        viewModel.start()
+
+        for _ in 0..<30 {
+            viewModel.tick(deltaTime: 1.0 / 60.0)
+        }
+
+        #expect(viewModel.hud.score == viewModel.frame.score)
+        #expect(abs(viewModel.hud.progress - viewModel.frame.progress) <= 0.005)
+    }
+
+    @Test func frameContainsOnlyVisiblePlatforms() {
+        // висока вежа: верхні платформи на старті поза екраном і не потрапляють у кадр
+        let tower = (0..<40).map { Platform(id: $0, x: 160, y: Double($0) * 100) }
+        let library = LevelLibrary()
+        let navigator = SpyNavigator()
+        let viewModel = GameplayViewModel(levelID: library.levels[0].id, library: library,
+                                          scoreStore: InMemoryScoreStore(), navigator: navigator,
+                                          makeLevel: { _ in tower })
+        viewModel.start()
+
+        let visibleTop = viewModel.frame.cameraBottom + GameplayViewModel.visibleWorldHeight
+            + GameplayViewModel.cullingMargin
+        #expect(viewModel.frame.platforms.count < tower.count)
+        #expect(viewModel.frame.platforms.allSatisfy { $0.y <= visibleTop })
+    }
+}

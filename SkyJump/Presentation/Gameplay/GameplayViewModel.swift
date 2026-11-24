@@ -5,7 +5,16 @@ import Observation
 /// стежить за паузою і кінцем гри та готує `GameFrame` для малювання.
 @Observable
 final class GameplayViewModel {
+    /// Числа для HUD. Окремо від кадру: кадр змінюється 60 разів на секунду і перемальовує лише Canvas,
+    /// а HUD оновлюється тільки тоді, коли змінилося те, що на ньому видно.
+    struct HUDState: Equatable {
+        var score = 0
+        var progress: Double = 0       // округлено до 1 %
+        var jetpackLeft: Double = 0    // округлено до 2 %
+    }
+
     private(set) var frame = GameFrame()
+    private(set) var hud = HUDState()
     private(set) var outcome: GameOutcome = .playing
     private(set) var isPaused = false
     private(set) var isNewRecord = false
@@ -69,7 +78,7 @@ final class GameplayViewModel {
         isNewRecord = false
         outcome = .playing
         hasStarted = round.session != nil
-        frame = makeFrame()
+        updateFrame()
     }
 
     /// Один кадр гри. deltaTime — секунди від попереднього кадру.
@@ -83,13 +92,18 @@ final class GameplayViewModel {
             outcome = session.outcome
             input = 0
         }
-        frame = makeFrame()
+        updateFrame()
     }
 
     /// Напрям керування: -1 — вліво, 0 — без руху, 1 — вправо.
     func setInput(_ direction: Double) {
         input = min(max(direction, -1), 1)
     }
+
+    /// Запас над і під екраном, у межах якого об'єкти ще потрапляють у кадр (одиниці світу).
+    static let cullingMargin = 60.0
+    /// Видима висота світу з запасом: на найвищих iPhone видно ~ 900 одиниць.
+    static let visibleWorldHeight = 1000.0
 
     func pause() {
         guard hasStarted, outcome == .playing else { return }
@@ -121,22 +135,38 @@ final class GameplayViewModel {
 
     // MARK: - Кадр
 
+    /// Оновлює кадр і, лише якщо щось змінилось на екрані, — HUD.
+    private func updateFrame() {
+        frame = makeFrame()
+        let newHUD = HUDState(score: frame.score,
+                              progress: (frame.progress * 100).rounded() / 100,
+                              jetpackLeft: (frame.jetpackLeft * 50).rounded() / 50)
+        if newHUD != hud {
+            hud = newHUD
+        }
+    }
+
     private func makeFrame() -> GameFrame {
         guard let session = round.session else { return GameFrame() }
         let player = session.player
+        let cameraBottom = session.maxHeight - Self.cameraOffset
+        // у кадр потрапляє лише те, що видно на екрані: менше роботи для малювання
+        let visible = (cameraBottom - Self.cullingMargin)...(cameraBottom + Self.visibleWorldHeight + Self.cullingMargin)
 
         return GameFrame(
-            platforms: session.platforms.map { platform in
-                GameFrame.PlatformSprite(id: platform.id,
-                                         x: platform.position.x,
-                                         y: platform.position.y,
-                                         width: platform.width,
-                                         type: platform.type,
-                                         isBroken: platform.isBroken,
-                                         isCracked: platform.isCracked)
-            },
+            platforms: session.platforms
+                .filter { visible.contains($0.position.y) }
+                .map { platform in
+                    GameFrame.PlatformSprite(id: platform.id,
+                                             x: platform.position.x,
+                                             y: platform.position.y,
+                                             width: platform.width,
+                                             type: platform.type,
+                                             isBroken: platform.isBroken,
+                                             isCracked: platform.isCracked)
+                },
             pickups: session.pickups
-                .filter { !$0.isCollected }
+                .filter { !$0.isCollected && visible.contains($0.position.y) }
                 .map { GameFrame.PickupSprite(id: $0.id, kind: $0.kind,
                                               x: $0.position.x, y: $0.position.y) },
             playerX: player.position.x,
@@ -145,7 +175,7 @@ final class GameplayViewModel {
             isFalling: player.isFalling,
             jetpackLeft: session.hasJetpack ? session.jetpackTimeLeft / jetpackDuration : 0,
             // камера не опускається: тримається за найвищою точкою гравця
-            cameraBottom: session.maxHeight - Self.cameraOffset,
+            cameraBottom: cameraBottom,
             score: session.score,
             progress: session.progress
         )
