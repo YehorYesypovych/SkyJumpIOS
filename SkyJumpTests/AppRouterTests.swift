@@ -17,6 +17,12 @@ struct AppRouterTests {
         #expect(router.path == [.levelDetail(id)])
     }
 
+    @Test func radioOpensAsPush() {
+        let router = AppRouter()
+        router.showRadio()
+        #expect(router.path == [.radio])
+    }
+
     @Test func simulationOpensSeparateRoute() {
         let router = AppRouter()
         let id = UUID()
