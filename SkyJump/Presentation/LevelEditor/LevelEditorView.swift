@@ -59,7 +59,9 @@ struct LevelEditorView: View {
             .animation(reduceMotion ? nil : .snappy, value: viewModel.validationMessage)
             .scrollDismissesKeyboard(.interactively)
             .navigationTitle(viewModel.title)
-            .navigationBarTitleDisplayMode(.inline)
+            // великий заголовок під тулбаром: на вузьких екранах (iPhone 17e) inline-заголовок
+            // між «Скасувати» і «Зберегти» обрізався
+            .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Скасувати") { viewModel.cancel() }
