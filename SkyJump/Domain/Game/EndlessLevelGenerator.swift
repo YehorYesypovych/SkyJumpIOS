@@ -8,6 +8,7 @@ final class EndlessLevelGenerator {
     private var nextPlatformID = 0
     private var nextPickupID = 0
     private var platformsSinceJetpack = 0
+    private var lastX = 160.0
     /// Висота найвищої вже створеної платформи.
     private(set) var topHeight: Double = 0
 
@@ -18,9 +19,9 @@ final class EndlessLevelGenerator {
         generator = SeededRandomGenerator(seed: seed)
     }
 
-    /// Відстань до наступної платформи: від 95 до 150 (стрибок — ~187).
+    /// Відстань до наступної платформи: від 95 до 140 (стрибок — ~187).
     static func step(atHeight height: Double) -> Double {
-        95 + min(height / 150, 55)
+        min(95 + height / 150, Reachability.maxVerticalGap - 10)
     }
 
     /// Стартова платформа по центру і перші платформи над нею.
@@ -28,6 +29,7 @@ final class EndlessLevelGenerator {
         let first = Platform(id: nextPlatformID, x: 160, y: 0)
         nextPlatformID += 1
         topHeight = 0
+        lastX = 160
         let rest = extend(upTo: Self.lookahead)
         return ([first] + rest.platforms, rest.pickups)
     }
@@ -36,12 +38,13 @@ final class EndlessLevelGenerator {
     func extend(upTo height: Double) -> (platforms: [Platform], pickups: [Pickup]) {
         var platforms: [Platform] = []
         var pickups: [Pickup] = []
-        let maxX = GameConfig.worldWidth - GameConfig.platformWidth
-
         while topHeight < height {
             let y = topHeight + Self.step(atHeight: topHeight)
             let type = randomType(atHeight: y)
-            let x = Double.random(in: 0...maxX, using: &generator)
+            // рухома платформа може від'їхати — для неї запас по горизонталі менший
+            let gap = type == .moving ? Reachability.maxHorizontalGap * 0.7 : Reachability.maxHorizontalGap
+            let x = Reachability.nextPlatformX(after: lastX, maxGap: gap, using: &generator)
+            lastX = x
             let platform = Platform(id: nextPlatformID, x: x, y: y, type: type)
             nextPlatformID += 1
             platforms.append(platform)

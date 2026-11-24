@@ -22,12 +22,16 @@ final class RandomLevelProvider<Generator: RandomNumberGenerator>: LevelProvidin
     func makeLevel() -> [Platform] {
         // перша платформа завжди звичайна і по центру — з неї стартує гравець
         var builder = LevelBuilder().platform(.normal, x: 160, y: 0)
-        let maxX = GameConfig.worldWidth - GameConfig.platformWidth
+        var previousX = 160.0
+        // крок не більший за той, на який реально можна стрибнути
+        let step = min(verticalStep, Reachability.maxVerticalGap)
 
         for index in 1..<platformCount {
             let type = allowedTypes.randomElement(using: &generator) ?? .normal
-            let x = Double.random(in: 0...maxX, using: &generator)
-            builder = builder.platform(type, x: x, y: Double(index) * verticalStep)
+            // наступна платформа завжди в межах досяжності від попередньої
+            let x = Reachability.nextPlatformX(after: previousX, using: &generator)
+            builder = builder.platform(type, x: x, y: Double(index) * step)
+            previousX = x
         }
         return builder.build()
     }

@@ -156,8 +156,12 @@ final class GameSession {
     private func isStanding(on platform: Platform) -> Bool {
         guard footWidth > 0 else { return platform.contains(x: player.position.x) }
         let half = footWidth / 2
-        return player.position.x + half >= platform.position.x
-            && player.position.x - half <= platform.position.x + platform.width
+        // біля краю світу ноги частково з іншого боку екрана — перевіряємо і «копії» платформи
+        let worldWidth = GameConfig.worldWidth
+        return [-worldWidth, 0, worldWidth].contains { offset in
+            let left = platform.position.x + offset
+            return player.position.x + half >= left && player.position.x - half <= left + platform.width
+        }
     }
 
     private func handleLanding(onPlatformAt index: Int) {

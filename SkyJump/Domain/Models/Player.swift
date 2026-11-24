@@ -27,10 +27,11 @@ final class Player: GameObject {
         position.y += velocity.y * deltaTime
 
         // Як у Doodle Jump: вийшов за правий край — з'явився зліва, і навпаки
+        // зберігаємо «перельот», щоб рух через край був плавним, без ривка
         if position.x > GameConfig.worldWidth {
-            position.x = 0
+            position.x -= GameConfig.worldWidth
         } else if position.x < 0 {
-            position.x = GameConfig.worldWidth
+            position.x += GameConfig.worldWidth
         }
     }
 
