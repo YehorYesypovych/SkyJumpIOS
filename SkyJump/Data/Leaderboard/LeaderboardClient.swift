@@ -22,14 +22,12 @@ struct LeaderboardClient: LeaderboardProviding {
     /// `GET /api/leaderboard?limit=` → `{"entries":[…]}`.
     func topScores(limit: Int) async throws -> [LeaderboardEntry] {
         let request = Self.topScoresRequest(limit: limit, simulate: simulate)
-        let response = try await http.send(request, as: LeaderboardResponseDTO.self)
-        return response.entries.map(\.model)
+        return try await http.send(request, as: LeaderboardResponse.self).entries
     }
 
     /// `POST /api/scores` з JSON-тілом → `{"entry":{…},"rank":N}`.
     func submit(_ submission: ScoreSubmission) async throws -> SubmitResult {
-        let response = try await http.send(try submitRequest(submission), as: SubmitResultDTO.self)
-        return SubmitResult(entry: response.entry.model, rank: response.rank)
+        try await http.send(try submitRequest(submission), as: SubmitResult.self)
     }
 
     // MARK: - Запити (окремо, щоб перевірити їх у тестах)
@@ -51,34 +49,8 @@ struct LeaderboardClient: LeaderboardProviding {
     }
 }
 
-// MARK: - Формат відповіді сервера
-
-// DTO — `nonisolated`: мережевий компонент декодує відповідь поза головним актором,
-// тому відповідність `Decodable` не може бути прив'язана до MainActor (типова ізоляція проєкту).
-// Після декодування дані перетворюються на моделі домену.
-
-/// Відповідь `GET /api/leaderboard`.
-nonisolated struct LeaderboardResponseDTO: Decodable, Sendable {
-    let entries: [LeaderboardEntryDTO]
-}
-
-/// Відповідь `POST /api/scores`.
-nonisolated struct SubmitResultDTO: Decodable, Sendable {
-    let entry: LeaderboardEntryDTO
-    let rank: Int
-}
-
-/// Запис таблиці у форматі сервера.
-nonisolated struct LeaderboardEntryDTO: Decodable, Sendable {
-    let id: String
-    let player: String
-    let score: Int
-    let theme: String
-    let createdAt: Date
-}
-
-extension LeaderboardEntryDTO {
-    var model: LeaderboardEntry {
-        LeaderboardEntry(id: id, player: player, score: score, theme: theme, createdAt: createdAt)
-    }
+/// Обгортка відповіді `GET /api/leaderboard`. `nonisolated`, як і моделі домену:
+/// мережевий компонент декодує відповідь поза головним потоком.
+nonisolated struct LeaderboardResponse: Decodable, Sendable {
+    let entries: [LeaderboardEntry]
 }

@@ -80,8 +80,7 @@ struct LeaderboardClientTests {
     """
 
     @Test func decodesEntriesWithISO8601Date() throws {
-        let response = try JSONDecoder.skyJump.decode(LeaderboardResponseDTO.self, from: Data(Self.entriesJSON.utf8))
-        let entries = response.entries.map(\.model)
+        let entries = try JSONDecoder.skyJump.decode(LeaderboardResponse.self, from: Data(Self.entriesJSON.utf8)).entries
 
         #expect(entries.map(\.player) == ["Kolya", "Єгор"])
         #expect(entries.map(\.score) == [4820, 1200])
@@ -90,11 +89,11 @@ struct LeaderboardClientTests {
     }
 
     @Test func decodesSubmitResult() throws {
-        let result = try JSONDecoder.skyJump.decode(SubmitResultDTO.self, from: Data(Self.submitJSON.utf8))
+        let result = try JSONDecoder.skyJump.decode(SubmitResult.self, from: Data(Self.submitJSON.utf8))
 
         #expect(result.rank == 2)
-        #expect(result.entry.model.player == "Doodler")
-        #expect(result.entry.model.createdAt == ISO8601DateFormatter().date(from: "2026-11-24T20:30:00Z"))
+        #expect(result.entry.player == "Doodler")
+        #expect(result.entry.createdAt == ISO8601DateFormatter().date(from: "2026-11-24T20:30:00Z"))
     }
 
     @Test func mismatchedResponseBecomesDecodingError() async {

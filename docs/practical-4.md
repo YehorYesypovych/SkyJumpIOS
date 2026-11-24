@@ -152,7 +152,7 @@ flowchart LR
     HC --> SRV[(server/index.js)]
 ```
 
-- **`LeaderboardClient`** (`Data/Leaderboard/`) — лише збирає `HTTPRequest` (`GET /api/leaderboard?limit=`, `POST /api/scores` з JSON-тілом і `Content-Type: application/json`) і віддає його `HTTPClient`. Відповідь декодується в DTO (`LeaderboardResponseDTO`, `SubmitResultDTO`, `LeaderboardEntryDTO`) і перетворюється на моделі домену. DTO оголошено `nonisolated`, бо мережевий компонент декодує поза головним актором, а типова ізоляція проєкту — `MainActor`.
+- **`LeaderboardClient`** (`Data/Leaderboard/`) — лише збирає `HTTPRequest` (`GET /api/leaderboard?limit=`, `POST /api/scores` з JSON-тілом і `Content-Type: application/json`) і віддає його `HTTPClient`. Відповідь декодується прямо в моделі домену (`LeaderboardEntry`, `SubmitResult`); для списку є лише обгортка `LeaderboardResponse` (`{"entries":[…]}`). Усі вони `nonisolated` і `Sendable`, бо мережевий компонент декодує поза головним потоком, а типова ізоляція проєкту — `MainActor`.
 - **`LeaderboardViewModel`** — стан `LoadState<[LeaderboardEntry]>`:
 
 | Стан | Коли | Що бачить гравець |
@@ -164,17 +164,15 @@ flowchart LR
 
 Стани показуються всередині списку, а не поверх нього, тому поле ніка лишається доступним за будь-якого стану. «Потягни, щоб оновити» не прибирає вже показану таблицю, поки йде запит. Скасування (`CancellationError`, `URLError.cancelled`) не вважається помилкою — повертається попередній стан.
 
-**Тексти помилок** розрізняють види відмов:
+**Тексти помилок** — спільні для обох екранів, з `NetworkError.userMessage` (частина A). Екран «Лідери» додає лише одне: коли до сервера не вдалося під'єднатися, підказує, що його треба запустити.
 
 | `NetworkError` | Повідомлення |
 |---|---|
 | `.transport(.notConnectedToInternet)` | Немає інтернету. Перевір з'єднання і спробуй ще раз. |
-| `.transport(.timedOut)` | Сервер таблиці лідерів довго не відповідає. |
+| `.transport(.timedOut)` | Сервер довго не відповідає. Спробуй ще раз. |
 | `.transport(.cannotConnectToHost)` | Сервер таблиці лідерів недоступний. Перевір, що він запущений (node server/index.js). |
-| `.httpStatus(500)` | Помилка сервера (код 500). Спробуй пізніше. |
-| `.decoding`, `.invalidResponse` | Сервер надіслав неочікувану відповідь. |
-
-Поки частина A не злита, ці тексти живуть у `LeaderboardViewModel.message(for:)`; після злиття загальні випадки беруться з `NetworkError.userMessage`, а тут лишається тільки підказка про запуск власного сервера.
+| `.httpStatus(500)` | Помилка на сервері (код 500). Спробуй трохи згодом. |
+| `.decoding`, `.invalidResponse` | Сервер надіслав неочікувану відповідь. Спробуй трохи згодом. |
 
 - **Нік** — `PlayerProfile` (`@Observable`, `UserDefaults`): за замовчуванням «Doodler», 1…20 символів після обрізання пробілів. Змінюється в полі на екрані «Лідери» (кнопка «Зберегти» або Return), неправильний нік не зберігається й пояснюється під полем.
 - **Надсилання рахунку** — `LeaderboardScoreReporter: ScoreReporting`. `GameplayViewModel` викликає `report(score:)` лише після кінця нескінченної гри; reporter бере нік із профілю й тему з `CosmeticsSettings` і надсилає в окремому `Task` — гра не чекає мережі. Рахунок 0 (гра без жодного стрибка) не надсилається. Результат (`надсилаємо…` / `N місце` / `не надіслано: причина`) показується карткою на екрані «Лідери», а щойно надісланий запис підсвічується навіть після зміни ніка.
@@ -213,7 +211,7 @@ flowchart LR
 | Аргумент `-leaderboardSimulate broken` | у лозі сервера `GET /api/leaderboard?limit=20&simulate=broken`, на екрані «Сервер надіслав неочікувану відповідь» | ✅ | — |
 | 🐞 → «Порожня таблиця» | «Ще ніхто не грав» | ✅ | `lab4-leaderboard-empty.png` |
 | 🐞 → «Повільна відповідь» | ~3 с індикатор «Завантажуємо таблицю…», поле ніка й «Назад» доступні | ✅ | `lab4-leaderboard-loading.png` |
-| 🐞 → «HTTP 500» | «Помилка сервера (код 500)» | ✅ | `lab4-leaderboard-http500.png` |
+| 🐞 → «HTTP 500» | «Помилка на сервері (код 500)» | ✅ | `lab4-leaderboard-http500.png` |
 | 🐞 → «Пошкоджений JSON» | «Сервер надіслав неочікувану відповідь» | ✅ | `lab4-leaderboard-broken-json.png` |
 | Меню режиму перевірки | 7 сценаріїв, поточний позначено ✓ | ✅ | `lab4-leaderboard-debug-menu.png` |
 | `curl` усіх ендпоінтів і `simulate` (див. `server/README.md`) | коди 200/201/400/404/405/500, порожньо, обірваний JSON, затримка 3 с | ✅ | — |
@@ -245,9 +243,7 @@ flowchart LR
 | `RadioBrowserClientTests` | перехід на наступне дзеркало при недоступності і `5xx`; помилка формату не повторюється; усі сервери недоступні → помилка; порожня відповідь → `[]` |
 | `RadioViewModelTests` | дані, порожньо, помилка з кодом, повтор після помилки, усі сценарії режиму перевірки, фільтр за жанром |
 
-### 5.2 Таблиця лідерів (частина B) — `SkyJumpTests/LeaderboardTests.swift`
-
-Мережі в тестах немає: `LeaderboardClient` отримує `RecordingHTTPClient` (запам'ятовує `HTTPRequest` і декодує заготовлений JSON тим самим декодером `.skyJump`), ViewModel і reporter — `ScriptedLeaderboard` із заготовленими відповідями.
+**Таблиця лідерів** — `SkyJumpTests/LeaderboardTests.swift`. Мережі в тестах немає: `LeaderboardClient` отримує `RecordingHTTPClient` (запам'ятовує `HTTPRequest` і декодує заготовлений JSON тим самим декодером `.skyJump`), ViewModel і reporter — `ScriptedLeaderboard` із заготовленими відповідями.
 
 | Набір | Що перевіряє |
 |---|---|

@@ -129,29 +129,14 @@ final class LeaderboardViewModel {
 
     // MARK: - Тексти помилок
 
-    /// Повідомлення для користувача.
-    /// Після злиття частини A загальні тексти беруться з `NetworkError.userMessage`,
-    /// тут лишиться тільки підказка про запуск власного сервера.
+    /// Повідомлення для користувача — спільні тексти мережевого шару (`NetworkError.userMessage`).
+    /// Лише коли до сервера не вдалося під'єднатися, додається підказка: це власний сервер,
+    /// і найчастіша причина — його не запустили.
     static func message(for error: Error) -> String {
-        guard let networkError = error as? NetworkError else {
-            return "Щось пішло не так. Спробуй ще раз."
+        if case .transport(let code)? = error as? NetworkError,
+           [.cannotConnectToHost, .cannotFindHost].contains(code) {
+            return "Сервер таблиці лідерів недоступний. Перевір, що він запущений (node server/index.js)."
         }
-        switch networkError {
-        case .transport(let code):
-            switch code {
-            case .notConnectedToInternet, .networkConnectionLost, .dataNotAllowed:
-                return "Немає інтернету. Перевір з'єднання і спробуй ще раз."
-            case .timedOut:
-                return "Сервер таблиці лідерів довго не відповідає. Спробуй ще раз."
-            case .cannotConnectToHost, .cannotFindHost, .dnsLookupFailed:
-                return "Сервер таблиці лідерів недоступний. Перевір, що він запущений (node server/index.js)."
-            default:
-                return "Не вдалося з'єднатися з сервером таблиці лідерів."
-            }
-        case .httpStatus(let status):
-            return "Помилка сервера (код \(status)). Спробуй пізніше."
-        case .decoding, .invalidResponse:
-            return "Сервер надіслав неочікувану відповідь."
-        }
+        return NetworkError.userMessage(for: error)
     }
 }
