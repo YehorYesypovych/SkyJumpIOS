@@ -14,6 +14,8 @@ struct RootView: View {
         }
         .sheet(item: $router.sheet) { sheet in
             factory.makeView(for: sheet)
+                .tint(Theme.accent)
         }
+        .tint(Theme.accent)
     }
 }

@@ -10,24 +10,57 @@ struct LevelListView: View {
 
     var body: some View {
         List {
-            ForEach(viewModel.levels) { level in
-                Button {
-                    viewModel.open(level.id)
-                } label: {
-                    LevelRow(title: level.name,
-                             subtitle: viewModel.subtitle(for: level),
-                             record: viewModel.recordText(for: level))
+            Section {
+                ForEach(viewModel.levels) { level in
+                    Button {
+                        viewModel.open(level.id)
+                    } label: {
+                        LevelCard(level: level,
+                                  subtitle: viewModel.subtitle(for: level),
+                                  record: viewModel.recordText(for: level))
+                    }
+                    .buttonStyle(.plain)
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+                    .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+                }
+                .onDelete { offsets in
+                    viewModel.delete(at: offsets)
+                }
+            } header: {
+                if !viewModel.isEmpty {
+                    Text("Тримайся вище, збирай 🚀, не падай")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .textCase(nil)
                 }
             }
-            .onDelete { offsets in
-                viewModel.delete(at: offsets)
-            }
+        }
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
+        .background(alignment: .top) {
+            // м'який відблиск заходу сонця під заголовком
+            Theme.sunset
+                .opacity(0.18)
+                .frame(height: 260)
+                .mask(LinearGradient(colors: [.black, .clear], startPoint: .top, endPoint: .bottom))
+                .ignoresSafeArea()
         }
         .overlay {
             if viewModel.isEmpty {
-                ContentUnavailableView("Ще немає рівнів",
-                                       systemImage: "square.stack.3d.up.slash",
-                                       description: Text("Натисніть «+», щоб створити свій рівень."))
+                ContentUnavailableView {
+                    Label("Ще немає рівнів", systemImage: "square.stack.3d.up.slash")
+                } description: {
+                    Text("Створи свій перший рівень.")
+                } actions: {
+                    Button {
+                        viewModel.create()
+                    } label: {
+                        Label("Новий рівень", systemImage: "plus")
+                    }
+                    .buttonStyle(.gradient)
+                    .frame(maxWidth: 240)
+                }
             }
         }
         .animation(.default, value: viewModel.levels)
@@ -47,31 +80,46 @@ struct LevelListView: View {
     }
 }
 
-/// Рядок списку. Текст іде стовпчиком, щоб на вузьких екранах і з великим шрифтом нічого не перекривалось.
-private struct LevelRow: View {
-    let title: String
+/// Картка рівня: кольорова плитка зі складністю, назва, параметри і рекорд.
+/// Текст іде стовпчиком, щоб на вузьких екранах і з великим шрифтом нічого не перекривалось.
+private struct LevelCard: View {
+    let level: LevelPreset
     let subtitle: String
     let record: String
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 14) {
+            Text(Theme.emoji(for: level.difficulty))
+                .font(.system(size: 28))
+                .frame(width: 56, height: 56)
+                .background(Theme.gradient(for: level.difficulty),
+                            in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .accessibilityHidden(true)
+
             VStack(alignment: .leading, spacing: 4) {
-                Text(title)
+                Text(level.name)
                     .font(.headline)
                     .foregroundStyle(.primary)
                 Text(subtitle)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
-                Text(record)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+                Label(record, systemImage: level.bestScore > 0 ? "trophy.fill" : "sparkles")
+                    .font(.footnote.weight(.medium))
+                    .foregroundStyle(level.bestScore > 0 ? Theme.sunsetOrange : .secondary)
+                    .labelStyle(.titleAndIcon)
             }
+
             Spacer(minLength: 0)
+
             Image(systemName: "chevron.right")
                 .font(.footnote.weight(.semibold))
                 .foregroundStyle(.tertiary)
         }
-        .contentShape(Rectangle())
+        .padding(12)
+        .background(.background.secondary, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .contentShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .accessibilityElement(children: .combine)
+        .accessibilityHint("Відкрити рівень")
     }
 }
 
