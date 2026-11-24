@@ -9,11 +9,13 @@ import SwiftUI
 
 @main
 struct SkyJumpApp: App {
+    @State private var router = AppRouter()
     private let dependencies = AppDependencies.live()
 
     var body: some Scene {
         WindowGroup {
-            DemoView(viewModel: dependencies.makeDemoViewModel())
+            RootView(router: router,
+                     factory: ScreenFactory(dependencies: dependencies, navigator: router))
         }
     }
 }

@@ -9,44 +9,46 @@ struct DemoView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            VStack(alignment: .leading, spacing: 16) {
-                Button("Запустити демо-сценарій") {
-                    viewModel.runDemo()
-                }
-                .buttonStyle(.borderedProminent)
-
-                HStack {
-                    Text("Рекорд: \(viewModel.bestScore)")
-                        .font(.headline)
-                    if viewModel.isNewRecord {
-                        Text("Новий рекорд!")
-                            .font(.subheadline.bold())
-                            .foregroundStyle(.green)
-                    }
-                }
-
-                if let summary = viewModel.summaryText {
-                    Text(summary)
-                        .font(.callout)
-                }
-
-                List(Array(viewModel.logLines.enumerated()), id: \.offset) { item in
-                    Text(item.element)
-                        .font(.system(.footnote, design: .monospaced))
-                }
-                .listStyle(.plain)
+        VStack(alignment: .leading, spacing: 16) {
+            Button("Запустити демо-сценарій") {
+                viewModel.runDemo()
             }
-            .padding()
-            .navigationTitle("SkyJump")
+            .buttonStyle(.borderedProminent)
+
+            HStack {
+                Text("Рекорд: \(viewModel.bestScore)")
+                    .font(.headline)
+                if viewModel.isNewRecord {
+                    Text("Новий рекорд!")
+                        .font(.subheadline.bold())
+                        .foregroundStyle(.green)
+                }
+            }
+
+            if let summary = viewModel.summaryText {
+                Text(summary)
+                    .font(.callout)
+            }
+
+            List(Array(viewModel.logLines.enumerated()), id: \.offset) { item in
+                Text(item.element)
+                    .font(.system(.footnote, design: .monospaced))
+            }
+            .listStyle(.plain)
         }
+        .padding()
+        .navigationTitle("Демо-сценарій")
     }
 }
 
 #Preview("Стаби") {
-    DemoView(viewModel: AppDependencies.preview().makeDemoViewModel())
+    NavigationStack {
+        DemoView(viewModel: AppDependencies.preview().makeDemoViewModel())
+    }
 }
 
 #Preview("Справжня симуляція, тестовий рівень") {
-    DemoView(viewModel: AppDependencies.previewWithRealSimulation().makeDemoViewModel())
+    NavigationStack {
+        DemoView(viewModel: AppDependencies.previewWithRealSimulation().makeDemoViewModel())
+    }
 }

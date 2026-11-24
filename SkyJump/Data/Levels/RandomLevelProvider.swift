@@ -5,11 +5,17 @@ import Foundation
 final class RandomLevelProvider<Generator: RandomNumberGenerator>: LevelProviding {
     private let platformCount: Int
     private let verticalStep: Double
+    private let allowedTypes: [PlatformType]
     private var generator: Generator
 
-    init(platformCount: Int = 20, verticalStep: Double = 110, generator: Generator) {
+    /// allowedTypes — типи платформ, з яких випадково обирається кожна платформа (крім першої).
+    init(platformCount: Int = 20,
+         verticalStep: Double = 110,
+         allowedTypes: [PlatformType] = PlatformType.allCases,
+         generator: Generator) {
         self.platformCount = max(platformCount, 1)
         self.verticalStep = verticalStep
+        self.allowedTypes = allowedTypes
         self.generator = generator
     }
 
@@ -19,7 +25,7 @@ final class RandomLevelProvider<Generator: RandomNumberGenerator>: LevelProvidin
         let maxX = GameConfig.worldWidth - GameConfig.platformWidth
 
         for index in 1..<platformCount {
-            let type = PlatformType.allCases.randomElement(using: &generator) ?? .normal
+            let type = allowedTypes.randomElement(using: &generator) ?? .normal
             let x = Double.random(in: 0...maxX, using: &generator)
             builder = builder.platform(type, x: x, y: Double(index) * verticalStep)
         }
@@ -28,9 +34,12 @@ final class RandomLevelProvider<Generator: RandomNumberGenerator>: LevelProvidin
 }
 
 extension RandomLevelProvider where Generator == SystemRandomNumberGenerator {
-    convenience init(platformCount: Int = 20, verticalStep: Double = 110) {
+    convenience init(platformCount: Int = 20,
+                     verticalStep: Double = 110,
+                     allowedTypes: [PlatformType] = PlatformType.allCases) {
         self.init(platformCount: platformCount,
                   verticalStep: verticalStep,
+                  allowedTypes: allowedTypes,
                   generator: SystemRandomNumberGenerator())
     }
 }

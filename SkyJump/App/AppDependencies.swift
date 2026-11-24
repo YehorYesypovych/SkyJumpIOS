@@ -6,6 +6,8 @@ struct AppDependencies {
     let levelProvider: any LevelProviding
     let simulator: any GameSimulating
     let scoreStore: any ScoreStoring
+    /// Бібліотека рівнів «Мої рівні» — спільна для всіх екранів.
+    let library: LevelLibrary
 
     /// Залежності для реального запуску застосунку.
     /// Аргумент запуску `-randomLevel` (Edit Scheme → Run → Arguments) вмикає випадковий рівень.
@@ -17,7 +19,8 @@ struct AppDependencies {
         // Журнал подій додатково дублюється в консоль Xcode
         return AppDependencies(levelProvider: levelProvider,
                                simulator: GameSimulationService(observers: [ConsoleEventLogger()]),
-                               scoreStore: UserDefaultsScoreStore(defaults: .standard))
+                               scoreStore: UserDefaultsScoreStore(defaults: .standard),
+                               library: LevelLibrary())
     }
 
     func makeDemoViewModel() -> DemoViewModel {

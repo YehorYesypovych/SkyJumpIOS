@@ -30,3 +30,19 @@ final class CountingBreakLanding: LandingStrategy {
         return .broke
     }
 }
+
+/// Запам'ятовує, які переходи просила ViewModel.
+/// ViewModel тримає навігатор слабким посиланням, тому в тесті його треба зберегти в локальній змінній.
+@MainActor
+final class SpyNavigator: AppNavigating {
+    private(set) var calls: [String] = []
+
+    func showLevel(_ id: LevelPreset.ID) { calls.append("showLevel") }
+    func startGame(_ id: LevelPreset.ID) { calls.append("startGame") }
+    func showDemo() { calls.append("showDemo") }
+    func pop() { calls.append("pop") }
+    func popToRoot() { calls.append("popToRoot") }
+    func presentCreateLevel() { calls.append("presentCreateLevel") }
+    func presentEditLevel(_ id: LevelPreset.ID) { calls.append("presentEditLevel") }
+    func dismissSheet() { calls.append("dismissSheet") }
+}

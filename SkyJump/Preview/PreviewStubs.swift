@@ -40,13 +40,15 @@ extension AppDependencies {
     static func preview() -> AppDependencies {
         AppDependencies(levelProvider: StubLevelProvider(),
                         simulator: StubGameSimulator(),
-                        scoreStore: InMemoryScoreStore(bestScore: 500))
+                        scoreStore: InMemoryScoreStore(bestScore: 500),
+                        library: LevelLibrary())
     }
 
     /// Справжня симуляція на тестовому рівні — замінено лише джерело рівня і сховище.
     static func previewWithRealSimulation() -> AppDependencies {
         AppDependencies(levelProvider: StubLevelProvider(),
                         simulator: GameSimulationService(),
-                        scoreStore: InMemoryScoreStore())
+                        scoreStore: InMemoryScoreStore(),
+                        library: LevelLibrary())
     }
 }
