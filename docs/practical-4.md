@@ -42,7 +42,6 @@ GET https://de1.api.radio-browser.info/json/stations/bytag/synthwave?hidebroken=
 Відповідь декодується в `RadioBrowserStationDTO` (`Data/Radio/RadioBrowserClient.swift`): `url_resolved` перейменовано через `CodingKeys`, необов'язкові поля — `Optional`. Далі `RadioStationMapper` залишає лише те, що справді можна відтворити: лише `https`, кодеки MP3 / AAC / AAC+ / HLS, остання перевірка каталогу пройдена, без дублів за назвою.
 
 ### 1.2 SkyJump Leaderboard (власний сервер)
-<!-- Частина B: запуск сервера, endpoints, формат, simulate -->
 
 Глобальна таблиця лідерів нескінченного режиму. Сервер — [`server/index.js`](../server/index.js): Node.js 18+, лише вбудовані модулі (`http`, `fs`, `crypto`), `npm install` не потрібен. Докладна інструкція й приклади `curl` — [`server/README.md`](../server/README.md).
 
@@ -138,7 +137,6 @@ radioProvider: RadioBrowserClient(clients: RadioBrowserClient.liveClients()),
 | `decoding`, `invalidResponse` | Сервер надіслав неочікувану відповідь. Спробуй трохи згодом. |
 
 ### 3.2 Лідери
-<!-- Частина B -->
 
 ```mermaid
 flowchart LR
@@ -199,7 +197,6 @@ flowchart LR
 **Справжня відсутність мережі.** Вимкнути Wi-Fi на Mac (або Network Link Conditioner → 100% Loss), відкрити «Радіо» вперше після запуску — «Немає інтернету…»; увімкнути мережу і натиснути «Спробувати ще раз» — список.
 
 ### 4.2 Лідери
-<!-- Частина B: сервер, надсилання рахунку, порожньо, помилки -->
 
 Скриншоти — iPhone 18 Pro Max, `docs/screenshots/lab4-leaderboard-*.png`.
 
@@ -254,4 +251,9 @@ flowchart LR
 Сервер перевірено `curl`-запитами з `server/README.md` (усі коди відповіді й режими `simulate`).
 
 ## 6. Хто що робив
-<!-- Частина A, у фіналі -->
+| Учасник | Що робив |
+|---|---|
+| Kolya Kulchytskyi | Каркас ПР4: мережеве ядро (`HTTPClient`, `HTTPRequest`, `NetworkError`, `URLSessionHTTPClient`, `ServerConfig`), стан екрана `LoadState`, контракти таблиці лідерів; радіо через мережевий компонент з перебором дзеркал Radio Browser; стани екрана радіо і тексти помилок `NetworkError.userMessage`; режим перевірки станів радіо; тести мережевого клієнта на `URLProtocol`-заглушці і тести радіо; розділи 1.1, 2, 3.1, 4.1 і 5 (радіо) документації |
+| Єгор Єсипович | Власний сервер таблиці лідерів на Node.js (`server/`): топ, надсилання рахунку, валідація, режими `simulate`; клієнт `LeaderboardClient` на мережевому компоненті; нік гравця `PlayerProfile` і надсилання рахунку після нескінченної гри; екран «Лідери» зі станами і режимом перевірки; тести таблиці лідерів; скриншоти станів; розділи 1.2, 3.2, 4.2 і 5 (лідери) документації |
+
+Спільно: контракти між частинами (`LeaderboardProviding`, `ScoreReporting`, формат API сервера) погоджено заздалегідь у плані, кожна частина — окрема гілка і PR (#5, #6), конфліктів під час злиття не було.
