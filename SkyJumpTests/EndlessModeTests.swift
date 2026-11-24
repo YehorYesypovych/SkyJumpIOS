@@ -91,3 +91,36 @@ struct EndlessModeTests {
         #expect(router.path == [.endless])
     }
 }
+
+@MainActor
+struct ScoreReportingTests {
+
+    private static let tower = [
+        Platform(id: 0, x: 160, y: 0),
+        Platform(id: 1, x: 160, y: 120),
+        Platform(id: 2, x: 160, y: 240)
+    ]
+
+    @Test func levelModeDoesNotReport() {
+        let library = LevelLibrary()
+        let reporter = SpyScoreReporter()
+        let navigator = SpyNavigator()
+        let viewModel = GameplayViewModel(mode: .level(library.levels[0].id), library: library,
+                                          scoreStore: InMemoryScoreStore(), endlessScores: InMemoryScoreStore(),
+                                          navigator: navigator, scoreReporter: reporter,
+                                          makeLevel: { _ in ScoreReportingTests.tower })
+        viewModel.start()
+        for _ in 0..<(60 * 10) {
+            viewModel.tick(deltaTime: 1.0 / 60.0)
+        }
+
+        #expect(viewModel.outcome == .won)
+        #expect(reporter.reportedScores.isEmpty)
+    }
+
+    @Test func routerOpensLeaderboard() {
+        let router = AppRouter()
+        router.showLeaderboard()
+        #expect(router.path == [.leaderboard])
+    }
+}

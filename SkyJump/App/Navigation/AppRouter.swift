@@ -37,6 +37,10 @@ final class AppRouter: AppNavigating {
         path.append(.customize)
     }
 
+    func showLeaderboard() {
+        path.append(.leaderboard)
+    }
+
     func pop() {
         guard !path.isEmpty else { return }
         path.removeLast()

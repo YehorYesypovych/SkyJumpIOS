@@ -61,6 +61,10 @@ final class LevelListViewModel {
         navigator?.showCustomize()
     }
 
+    func openLeaderboard() {
+        navigator?.showLeaderboard()
+    }
+
     func delete(at offsets: IndexSet) {
         let ids = offsets.map { levels[$0].id }
         ids.forEach { library.delete(id: $0) }

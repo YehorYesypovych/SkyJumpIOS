@@ -35,7 +35,8 @@ struct ScreenFactory {
                                                       library: dependencies.library,
                                                       scoreStore: dependencies.scoreStore,
                                                       endlessScores: dependencies.endlessScores,
-                                                      navigator: navigator),
+                                                      navigator: navigator,
+                                                      scoreReporter: dependencies.scoreReporter),
                          radio: dependencies.radio,
                          cosmetics: dependencies.cosmetics)
         case .game(let id):
@@ -46,6 +47,8 @@ struct ScreenFactory {
                                               navigator: navigator))
         case .demo:
             DemoView(viewModel: dependencies.makeDemoViewModel())
+        case .leaderboard:
+            LeaderboardView(viewModel: LeaderboardViewModel(provider: dependencies.leaderboard))
         case .customize:
             CustomizeView(settings: dependencies.cosmetics)
         case .radio:

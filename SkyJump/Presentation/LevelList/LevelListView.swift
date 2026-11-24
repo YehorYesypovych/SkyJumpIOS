@@ -81,6 +81,11 @@ struct LevelListView: View {
                 }
             }
             ToolbarItem(placement: .topBarTrailing) {
+                Button("Лідери", systemImage: "trophy") {
+                    viewModel.openLeaderboard()
+                }
+            }
+            ToolbarItem(placement: .topBarTrailing) {
                 Button("Радіо", systemImage: "radio") {
                     viewModel.openRadio()
                 }

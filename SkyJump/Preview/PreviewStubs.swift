@@ -45,7 +45,9 @@ extension AppDependencies {
                         library: LevelLibrary(),
                         radio: .preview(),
                         radioProvider: StubRadioProvider(),
-                        cosmetics: CosmeticsSettings(defaults: UserDefaults(suiteName: "preview.cosmetics") ?? .standard))
+                        cosmetics: CosmeticsSettings(defaults: UserDefaults(suiteName: "preview.cosmetics") ?? .standard),
+                        leaderboard: UnavailableLeaderboard(),
+                        scoreReporter: nil)
     }
 
     /// Справжня симуляція на тестовому рівні — замінено лише джерело рівня і сховище.
@@ -57,7 +59,9 @@ extension AppDependencies {
                         library: LevelLibrary(),
                         radio: .preview(),
                         radioProvider: StubRadioProvider(),
-                        cosmetics: CosmeticsSettings(defaults: UserDefaults(suiteName: "preview.cosmetics") ?? .standard))
+                        cosmetics: CosmeticsSettings(defaults: UserDefaults(suiteName: "preview.cosmetics") ?? .standard),
+                        leaderboard: UnavailableLeaderboard(),
+                        scoreReporter: nil)
     }
 }
 

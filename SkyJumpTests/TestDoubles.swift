@@ -44,6 +44,7 @@ final class SpyNavigator: AppNavigating {
     func showDemo() { calls.append("showDemo") }
     func showRadio() { calls.append("showRadio") }
     func showCustomize() { calls.append("showCustomize") }
+    func showLeaderboard() { calls.append("showLeaderboard") }
     func pop() { calls.append("pop") }
     func popToRoot() { calls.append("popToRoot") }
     func presentCreateLevel() { calls.append("presentCreateLevel") }
@@ -78,3 +79,14 @@ struct StubStationsProvider: RadioStationProviding {
         try result.get()
     }
 }
+
+/// Запам'ятовує рахунки, які гра віддала в таблицю лідерів.
+@MainActor
+final class SpyScoreReporter: ScoreReporting {
+    private(set) var reportedScores: [Int] = []
+
+    func report(score: Int) {
+        reportedScores.append(score)
+    }
+}
+

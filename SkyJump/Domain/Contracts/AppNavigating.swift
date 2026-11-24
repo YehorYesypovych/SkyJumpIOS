@@ -9,6 +9,7 @@ protocol AppNavigating: AnyObject {
     func showDemo()
     func showRadio()
     func showCustomize()
+    func showLeaderboard()
     func pop()
     func popToRoot()
     func presentCreateLevel()

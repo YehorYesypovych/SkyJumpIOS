@@ -15,6 +15,9 @@ struct AppDependencies {
     let radioProvider: any RadioStationProviding
     /// Тема, скін і слід гравця.
     let cosmetics: CosmeticsSettings
+    /// Таблиця лідерів на власному сервері і куди віддати рахунок після нескінченної гри.
+    let leaderboard: any LeaderboardProviding
+    let scoreReporter: (any ScoreReporting)?
 
     /// Залежності для реального запуску застосунку.
     /// Аргумент запуску `-randomLevel` (Edit Scheme → Run → Arguments) вмикає випадковий рівень.
@@ -31,7 +34,10 @@ struct AppDependencies {
                                library: LevelLibrary(),
                                radio: RadioPlayer(streamer: AVPlayerStreamer()),
                                radioProvider: RadioBrowserClient(),
-                               cosmetics: CosmeticsSettings())
+                               cosmetics: CosmeticsSettings(),
+                               // справжній клієнт і надсилання рахунку додає частина B
+                               leaderboard: UnavailableLeaderboard(),
+                               scoreReporter: nil)
     }
 
     func makeDemoViewModel() -> DemoViewModel {

@@ -9,6 +9,7 @@ enum Route: Hashable {
     case demo
     case radio
     case customize
+    case leaderboard
 }
 
 /// Модальні екрани.

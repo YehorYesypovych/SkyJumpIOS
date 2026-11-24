@@ -46,6 +46,8 @@ final class GameplayViewModel {
     static let trailLength = 16
     static let trailSpacing = 7.0
     @ObservationIgnored private let jetpackDuration: Double
+    /// Куди віддати рахунок нескінченного режиму (таблиця лідерів); nil — нікуди.
+    @ObservationIgnored private let scoreReporter: (any ScoreReporting)?
 
     convenience init(levelID: LevelPreset.ID,
                      library: LevelLibrary,
@@ -62,9 +64,11 @@ final class GameplayViewModel {
          scoreStore: any ScoreStoring,
          endlessScores: any ScoreStoring,
          navigator: AppNavigating,
+         scoreReporter: (any ScoreReporting)? = nil,
          rules: GameRules = .standard,
          makeLevel: @escaping (LevelPreset) -> [Platform] = { PresetLevelProvider(preset: $0).makeLevel() }) {
         self.mode = mode
+        self.scoreReporter = scoreReporter
         self.jetpackDuration = max(rules.jetpackDuration, 0.01)
         self.library = library
         self.navigator = navigator
@@ -115,6 +119,9 @@ final class GameplayViewModel {
             isNewRecord = round.isNewRecord
             outcome = session.outcome
             input = 0
+            if isEndless {
+                scoreReporter?.report(score: session.score)
+            }
         }
         updateFrame()
     }
