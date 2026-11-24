@@ -26,8 +26,12 @@ struct RadioView: View {
                     .listRowInsets(EdgeInsets(top: 5, leading: 16, bottom: 5, trailing: 16))
                 }
             } header: {
-                genreChips
-                    .textCase(nil)
+                VStack(spacing: 8) {
+                    RadioVolumeSlider(player: viewModel.player)
+                        .padding(.horizontal, 4)
+                    genreChips
+                }
+                .textCase(nil)
             }
         }
         .listStyle(.plain)

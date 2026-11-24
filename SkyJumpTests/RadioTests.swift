@@ -112,15 +112,30 @@ struct RadioPlayerTests {
         #expect(streamer.playedURLs.count == 2)
     }
 
-    @Test func duckingLowersVolume() {
+    @Test func duckingLowersChosenVolume() {
         let (player, streamer, _) = makePlayer()
+        player.setVolume(0.5)
         player.play(StubRadioProvider.stations[0])
+        #expect(streamer.volume == 0.5)
 
         player.setDucked(true)
-        #expect(streamer.volume == RadioPlayer.duckedVolume)
+        #expect(streamer.volume == 0.5 * RadioPlayer.duckFactor)
 
         player.setDucked(false)
-        #expect(streamer.volume == RadioPlayer.normalVolume)
+        #expect(streamer.volume == 0.5)
+    }
+
+    @Test func volumeIsClampedAndRemembered() {
+        let (player, streamer, defaults) = makePlayer()
+        #expect(player.volume == RadioPlayer.defaultVolume)
+
+        player.setVolume(1.7)
+        #expect(player.volume == 1)
+        #expect(streamer.volume == 1)
+
+        player.setVolume(0.3)
+        let restored = RadioPlayer(streamer: SpyStreamer(), defaults: defaults)
+        #expect(restored.volume == 0.3)
     }
 }
 

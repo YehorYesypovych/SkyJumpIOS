@@ -121,3 +121,25 @@ struct MiniPlayerBar: View {
         }
     }
 }
+
+/// Повзунок гучності радіо.
+struct RadioVolumeSlider: View {
+    let player: RadioPlayer
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "speaker.fill")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+            Slider(value: Binding(get: { Double(player.volume) },
+                                  set: { player.setVolume(Float($0)) }),
+                   in: 0...1)
+                .accessibilityLabel("Гучність радіо")
+                .accessibilityValue("\(Int((player.volume * 100).rounded())) %")
+            Image(systemName: "speaker.wave.3.fill")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        }
+    }
+}
+

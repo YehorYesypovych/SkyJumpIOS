@@ -9,9 +9,12 @@ final class RadioPlayer {
     private(set) var state: StreamState = .idle
     private(set) var queue: [RadioStation] = []
     private(set) var isDucked = false
+    /// Гучність радіо, яку обирає гравець: 0…1. Зберігається між запусками.
+    private(set) var volume: Float
 
-    static let normalVolume: Float = 1
-    static let duckedVolume: Float = 0.25
+    static let defaultVolume: Float = 0.8
+    /// У скільки разів притишується радіо на паузі гри.
+    static let duckFactor: Float = 0.3
 
     @ObservationIgnored private let streamer: AudioStreaming
     @ObservationIgnored private let defaults: UserDefaults
@@ -22,6 +25,9 @@ final class RadioPlayer {
         self.defaults = defaults
         self.key = key
         self.current = defaults.data(forKey: key).flatMap { try? JSONDecoder().decode(RadioStation.self, from: $0) }
+        let volumeKey = key + ".volume"
+        let savedVolume = defaults.object(forKey: volumeKey) == nil ? Self.defaultVolume : defaults.float(forKey: volumeKey)
+        self.volume = min(max(savedVolume, 0), 1)
         streamer.onStateChange = { [weak self] state in
             self?.state = state
         }
@@ -39,7 +45,7 @@ final class RadioPlayer {
         if let data = try? JSONEncoder().encode(station) {
             defaults.set(data, forKey: key)
         }
-        streamer.volume = isDucked ? Self.duckedVolume : Self.normalVolume
+        applyVolume()
         streamer.play(url: station.streamURL)
     }
 
@@ -69,6 +75,18 @@ final class RadioPlayer {
     func setDucked(_ ducked: Bool) {
         guard ducked != isDucked else { return }
         isDucked = ducked
-        streamer.volume = ducked ? Self.duckedVolume : Self.normalVolume
+        applyVolume()
+    }
+
+    /// Гучність від гравця (повзунок): 0…1.
+    func setVolume(_ newValue: Float) {
+        volume = min(max(newValue, 0), 1)
+        defaults.set(volume, forKey: key + ".volume")
+        applyVolume()
+    }
+
+    /// Справжня гучність програвача: обрана гравцем, на паузі гри — притишена.
+    private func applyVolume() {
+        streamer.volume = isDucked ? volume * Self.duckFactor : volume
     }
 }

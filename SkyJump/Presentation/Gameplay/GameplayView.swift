@@ -218,6 +218,16 @@ struct GameplayView: View {
 extension GameplayView {
     /// Радіо на екрані паузи: поточна станція, пуск/стоп і наступна станція.
     private var radioControls: some View {
+        VStack(spacing: 10) {
+            radioStationRow
+            RadioVolumeSlider(player: radio)
+        }
+        .padding(12)
+        .frame(maxWidth: 320)
+        .cardStyle(cornerRadius: 20)
+    }
+
+    private var radioStationRow: some View {
         HStack(spacing: 12) {
             StationArtwork(station: radio.current, size: 40)
             VStack(alignment: .leading, spacing: 2) {
@@ -246,10 +256,6 @@ extension GameplayView {
                 .accessibilityLabel("Наступна станція")
             }
         }
-        .foregroundStyle(.white)
-        .padding(12)
-        .frame(maxWidth: 320)
-        .cardStyle(cornerRadius: 20)
     }
 }
 
