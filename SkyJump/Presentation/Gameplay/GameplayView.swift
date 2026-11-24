@@ -69,17 +69,9 @@ struct GameplayView: View {
     private var gameField: some View {
         GeometryReader { proxy in
             ZStack(alignment: .top) {
-                TimelineView(.animation(minimumInterval: nil, paused: !viewModel.isPlaying)) { timeline in
-                    Canvas { context, size in
-                        GameRenderer.draw(viewModel.frame, in: &context, size: size)
-                    }
-                    .onChange(of: timeline.date) { _, date in
-                        if let deltaTime = clock.advance(to: date) {
-                            viewModel.tick(deltaTime: deltaTime)
-                        }
-                    }
-                }
-                .ignoresSafeArea()
+                // окремий вигляд: лише він читає кадр і перемальовується щокадру
+                GameCanvas(viewModel: viewModel, clock: clock)
+                    .ignoresSafeArea()
                 .contentShape(Rectangle())
                 .gesture(controlGesture(width: proxy.size.width))
 
@@ -93,7 +85,7 @@ struct GameplayView: View {
 
                 if viewModel.outcome != .playing {
                     GameResultOverlay(outcome: viewModel.outcome,
-                                      score: viewModel.frame.score,
+                                      score: viewModel.hud.score,
                                       bestScore: viewModel.bestScore,
                                       isNewRecord: viewModel.isNewRecord,
                                       onRestart: {
@@ -114,7 +106,10 @@ struct GameplayView: View {
     private func controlGesture(width: CGFloat) -> some Gesture {
         DragGesture(minimumDistance: 0)
             .onChanged { value in
-                hasTouched = true
+                // стан змінюємо лише раз: onChanged приходить на кожен рух пальця
+                if !hasTouched {
+                    hasTouched = true
+                }
                 viewModel.setInput(value.location.x < width / 2 ? -1 : 1)
             }
             .onEnded { _ in
@@ -127,10 +122,10 @@ struct GameplayView: View {
     private var hud: some View {
         VStack(spacing: 10) {
             HStack(alignment: .center) {
-                Text("\(viewModel.frame.score)")
+                Text("\(viewModel.hud.score)")
                     .font(.system(size: 34, weight: .heavy, design: .rounded))
                     .monospacedDigit()
-                    .contentTransition(.numericText(value: Double(viewModel.frame.score)))
+                    .contentTransition(.numericText(value: Double(viewModel.hud.score)))
                     .padding(.horizontal, 16)
                     .padding(.vertical, 4)
                     .background(.ultraThinMaterial, in: Capsule())
@@ -146,7 +141,7 @@ struct GameplayView: View {
                     .accessibilityLabel("Рекорд рівня \(viewModel.bestScore)")
             }
 
-            ProgressBar(value: viewModel.frame.progress)
+            ProgressBar(value: viewModel.hud.progress)
                 .accessibilityLabel("Прогрес до вершини")
 
             if radio.state == .playing, let station = radio.current {
@@ -163,10 +158,10 @@ struct GameplayView: View {
                 .accessibilityLabel("Радіо: \(station.name)")
             }
 
-            if viewModel.frame.jetpackLeft > 0 {
+            if viewModel.hud.jetpackLeft > 0 {
                 HStack(spacing: 8) {
                     Text("🚀")
-                    ProgressBar(value: viewModel.frame.jetpackLeft, fill: Theme.neonMint)
+                    ProgressBar(value: viewModel.hud.jetpackLeft, fill: Theme.neonMint)
                         .frame(width: 90)
                 }
                 .padding(.horizontal, 12)
@@ -184,7 +179,7 @@ struct GameplayView: View {
         .foregroundStyle(.white)
         .padding(.horizontal)
         .padding(.top, 4)
-        .animation(reduceMotion ? nil : .spring(duration: 0.35), value: viewModel.frame.jetpackLeft > 0)
+        .animation(reduceMotion ? nil : .spring(duration: 0.35), value: viewModel.hud.jetpackLeft > 0)
         .animation(reduceMotion ? nil : .spring(duration: 0.35), value: hasTouched)
     }
 
@@ -276,6 +271,29 @@ private struct ProgressBar: View {
     }
 }
 
+// MARK: - Поле гри
+
+/// Поле гри, що перемальовується щокадру. Винесене окремо, щоб 60 разів на секунду
+/// оновлювався лише Canvas, а не HUD, кнопки й оверлеї.
+private struct GameCanvas: View {
+    let viewModel: GameplayViewModel
+    let clock: FrameClock
+
+    var body: some View {
+        TimelineView(.animation(minimumInterval: nil, paused: !viewModel.isPlaying)) { timeline in
+            // opaque: фон повністю зафарбовує поле, тож системі не треба змішувати його з тим, що під ним
+            Canvas(opaque: true) { context, size in
+                GameRenderer.draw(viewModel.frame, in: &context, size: size)
+            }
+            .onChange(of: timeline.date) { _, date in
+                if let deltaTime = clock.advance(to: date) {
+                    viewModel.tick(deltaTime: deltaTime)
+                }
+            }
+        }
+    }
+}
+
 // MARK: - Час кадру
 
 /// Рахує час між кадрами TimelineView. Після паузи скидається, щоб не було великого стрибка.
@@ -308,22 +326,23 @@ private enum GameRenderer {
 
         NeonBeachBackground.draw(in: &context, size: size, cameraBottom: frame.cameraBottom, scale: scale)
 
-        context.drawLayer { layer in
-            layer.addFilter(.shadow(color: .black.opacity(0.28), radius: 4, x: 0, y: 3))
-            for platform in frame.platforms {
-                let rect = CGRect(x: platform.x * scale,
-                                  y: screenY(platform.y),
-                                  width: platform.width * scale,
-                                  height: platformHeight * scale)
-                guard rect.maxY >= -40, rect.minY <= size.height else { continue }
-                drawPlatform(platform, rect: rect, scale: scale, in: &layer)
-            }
+        for platform in frame.platforms {
+            let rect = CGRect(x: platform.x * scale,
+                              y: screenY(platform.y),
+                              width: platform.width * scale,
+                              height: platformHeight * scale)
+            guard rect.maxY >= -40, rect.minY <= size.height else { continue }
+            drawPlatform(platform, rect: rect, scale: scale, in: &context)
         }
 
-        for pickup in frame.pickups {
-            let bottom = CGPoint(x: pickup.x * scale, y: screenY(pickup.y))
-            guard bottom.y > -40, bottom.y < size.height + 40 else { continue }
-            drawJetpackPickup(at: bottom, scale: scale, in: &context)
+        if !frame.pickups.isEmpty {
+            // емодзі розкладається на гліфи один раз за кадр, а не для кожного бонуса
+            let rocket = context.resolve(Text("🚀").font(.system(size: 24 * scale)))
+            for pickup in frame.pickups {
+                let bottom = CGPoint(x: pickup.x * scale, y: screenY(pickup.y))
+                guard bottom.y > -40, bottom.y < size.height + 40 else { continue }
+                drawJetpackPickup(rocket, at: bottom, scale: scale, in: &context)
+            }
         }
 
         // персонаж біля краю видно з обох боків — так само, як він переходить через край світу
@@ -341,6 +360,10 @@ private enum GameRenderer {
                                      scale: CGFloat, in context: inout GraphicsContext) {
         let color = Theme.color(for: platform.type)
         let opacity = platform.isBroken ? 0.25 : 1
+        // тінь — просто зсунута темна смужка: без розмиття, яке дорого рахувати щокадру
+        let shadow = rect.offsetBy(dx: 0, dy: 3 * scale)
+        context.fill(Path(roundedRect: shadow, cornerRadius: shadow.height / 2),
+                     with: .color(.black.opacity(0.22 * opacity)))
         let shape = Path(roundedRect: rect, cornerRadius: rect.height / 2)
         context.fill(shape, with: .color(color.opacity(opacity)))
         // тонкий темний контур: платформу видно і на світлому заході сонця
@@ -402,11 +425,11 @@ private enum GameRenderer {
 
     // MARK: Джетпак
 
-    private static func drawJetpackPickup(at bottom: CGPoint, scale: CGFloat, in context: inout GraphicsContext) {
+    private static func drawJetpackPickup(_ rocket: GraphicsContext.ResolvedText, at bottom: CGPoint,
+                                          scale: CGFloat, in context: inout GraphicsContext) {
         let glow = CGRect(x: bottom.x - 20 * scale, y: bottom.y - 40 * scale, width: 40 * scale, height: 40 * scale)
         context.fill(Path(ellipseIn: glow), with: .color(Theme.neonMint.opacity(0.35)))
-        context.draw(Text("🚀").font(.system(size: 24 * scale)),
-                     at: CGPoint(x: bottom.x, y: bottom.y - 20 * scale))
+        context.draw(rocket, at: CGPoint(x: bottom.x, y: bottom.y - 20 * scale))
     }
 
     // MARK: Персонаж
