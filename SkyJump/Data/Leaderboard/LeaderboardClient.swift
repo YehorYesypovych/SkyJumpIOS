@@ -10,15 +10,19 @@ struct LeaderboardClient: LeaderboardProviding {
 
     private let http: any HTTPClient
     private let encoder: JSONEncoder
+    /// Режим перевірки на сервері (`empty`, `error`, `broken`, `slow`); nil — звичайна робота.
+    private let simulate: String?
 
-    init(http: any HTTPClient, encoder: JSONEncoder = .skyJump) {
+    init(http: any HTTPClient, encoder: JSONEncoder = .skyJump, simulate: String? = nil) {
         self.http = http
         self.encoder = encoder
+        self.simulate = simulate.flatMap { $0.isEmpty ? nil : $0 }
     }
 
     /// `GET /api/leaderboard?limit=` → `{"entries":[…]}`.
     func topScores(limit: Int) async throws -> [LeaderboardEntry] {
-        let response = try await http.send(Self.topScoresRequest(limit: limit), as: LeaderboardResponseDTO.self)
+        let request = Self.topScoresRequest(limit: limit, simulate: simulate)
+        let response = try await http.send(request, as: LeaderboardResponseDTO.self)
         return response.entries.map(\.model)
     }
 
@@ -30,11 +34,13 @@ struct LeaderboardClient: LeaderboardProviding {
 
     // MARK: - Запити (окремо, щоб перевірити їх у тестах)
 
-    static func topScoresRequest(limit: Int) -> HTTPRequest {
+    static func topScoresRequest(limit: Int, simulate: String? = nil) -> HTTPRequest {
         let clamped = min(max(limit, limitRange.lowerBound), limitRange.upperBound)
-        return HTTPRequest(method: .get,
-                           path: "/api/leaderboard",
-                           query: [URLQueryItem(name: "limit", value: String(clamped))])
+        var query = [URLQueryItem(name: "limit", value: String(clamped))]
+        if let simulate {
+            query.append(URLQueryItem(name: "simulate", value: simulate))
+        }
+        return HTTPRequest(method: .get, path: "/api/leaderboard", query: query)
     }
 
     func submitRequest(_ submission: ScoreSubmission) throws -> HTTPRequest {
