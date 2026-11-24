@@ -59,6 +59,11 @@ struct LevelListView: View {
         .navigationTitle("Мої рівні")
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
+                Button("Стиль", systemImage: "paintpalette") {
+                    viewModel.openCustomize()
+                }
+            }
+            ToolbarItem(placement: .topBarLeading) {
                 Button("Демо", systemImage: "play.rectangle") {
                     viewModel.openDemo()
                 }

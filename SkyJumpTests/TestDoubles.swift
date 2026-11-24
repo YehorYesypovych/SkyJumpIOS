@@ -42,6 +42,7 @@ final class SpyNavigator: AppNavigating {
     func simulateLevel(_ id: LevelPreset.ID) { calls.append("simulateLevel") }
     func showDemo() { calls.append("showDemo") }
     func showRadio() { calls.append("showRadio") }
+    func showCustomize() { calls.append("showCustomize") }
     func pop() { calls.append("pop") }
     func popToRoot() { calls.append("popToRoot") }
     func presentCreateLevel() { calls.append("presentCreateLevel") }

@@ -37,6 +37,8 @@ struct ScreenFactory {
                                               navigator: navigator))
         case .demo:
             DemoView(viewModel: dependencies.makeDemoViewModel())
+        case .customize:
+            CustomizeView(settings: dependencies.cosmetics)
         case .radio:
             RadioView(viewModel: RadioViewModel(provider: dependencies.radioProvider,
                                                 player: dependencies.radio))

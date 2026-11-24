@@ -7,6 +7,7 @@ protocol AppNavigating: AnyObject {
     func simulateLevel(_ id: LevelPreset.ID)
     func showDemo()
     func showRadio()
+    func showCustomize()
     func pop()
     func popToRoot()
     func presentCreateLevel()

@@ -29,6 +29,10 @@ final class AppRouter: AppNavigating {
         path.append(.radio)
     }
 
+    func showCustomize() {
+        path.append(.customize)
+    }
+
     func pop() {
         guard !path.isEmpty else { return }
         path.removeLast()
