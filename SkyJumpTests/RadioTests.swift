@@ -66,6 +66,68 @@ struct RadioStationMapperTests {
 }
 
 @MainActor
+struct RadioBrowserClientTests {
+
+    private let oneStation = """
+    [{"stationuuid": "a", "name": "Neon FM", "url": "https://neon.example/stream.mp3",
+      "codec": "MP3", "lastcheckok": 1, "clickcount": 5, "tags": "synthwave"}]
+    """
+
+    @Test func unreachableServerFallsBackToNext() async throws {
+        let down = ScriptedHTTPClient(error: .transport(.cannotConnectToHost))
+        let up = ScriptedHTTPClient(json: oneStation)
+
+        let stations = try await RadioBrowserClient(clients: [down, up]).stations(for: [.synthwave])
+
+        #expect(stations.map(\.id) == ["a"])
+        #expect(down.requests.count == 1)
+        #expect(up.requests.first?.path == "/json/stations/bytag/synthwave")
+    }
+
+    @Test func serverErrorFallsBackToNext() async throws {
+        let failing = ScriptedHTTPClient(error: .httpStatus(503))
+        let up = ScriptedHTTPClient(json: oneStation)
+
+        let stations = try await RadioBrowserClient(clients: [failing, up]).stations(for: [.synthwave])
+
+        #expect(stations.count == 1)
+    }
+
+    @Test func brokenFormatIsNotRetriedOnOtherServer() async {
+        let broken = ScriptedHTTPClient(error: .decoding("немає поля «name»"))
+        let up = ScriptedHTTPClient(json: oneStation)
+
+        await #expect(throws: NetworkError.decoding("немає поля «name»")) {
+            try await RadioBrowserClient(clients: [broken, up]).stations(for: [.synthwave])
+        }
+        #expect(up.requests.isEmpty)
+    }
+
+    @Test func allServersDownIsError() async {
+        let clients = [ScriptedHTTPClient(error: .transport(.timedOut)),
+                       ScriptedHTTPClient(error: .transport(.timedOut))]
+
+        await #expect(throws: NetworkError.transport(.timedOut)) {
+            try await RadioBrowserClient(clients: clients).stations(for: [.synthwave, .retrowave])
+        }
+    }
+
+    @Test func emptyAnswerIsNotError() async throws {
+        let stations = try await RadioBrowserClient(clients: [ScriptedHTTPClient(json: "[]")])
+            .stations(for: RadioGenre.allCases)
+
+        #expect(stations.isEmpty)
+    }
+
+    @Test func fallbackRules() {
+        #expect(RadioBrowserClient.shouldTryNextServer(after: .transport(.timedOut)))
+        #expect(RadioBrowserClient.shouldTryNextServer(after: .httpStatus(502)))
+        #expect(!RadioBrowserClient.shouldTryNextServer(after: .httpStatus(404)))
+        #expect(!RadioBrowserClient.shouldTryNextServer(after: .decoding("x")))
+    }
+}
+
+@MainActor
 struct RadioPlayerTests {
 
     private func makePlayer() -> (RadioPlayer, SpyStreamer, UserDefaults) {
@@ -206,6 +268,57 @@ struct RadioViewModelTests {
         let viewModel = RadioViewModel(provider: StubStationsProvider(result: .failure(URLError(.timedOut))),
                                        player: player)
 
+        #expect(viewModel.state == .loaded(StubRadioProvider.stations))
+    }
+
+    @Test func emptyResultShowsEmptyState() async {
+        let player = makePlayer()
+        let viewModel = RadioViewModel(provider: StubStationsProvider(result: .success([])), player: player)
+
+        await viewModel.load()
+
+        #expect(viewModel.state == .empty)
+        #expect(player.queue.isEmpty)
+    }
+
+    @Test func serverErrorShowsCode() async {
+        let viewModel = RadioViewModel(provider: StubStationsProvider(result: .failure(NetworkError.httpStatus(500))),
+                                       player: makePlayer())
+
+        await viewModel.load()
+
+        guard case .failed(let message) = viewModel.state else {
+            Issue.record("Очікувався стан помилки")
+            return
+        }
+        #expect(message.contains("500"))
+    }
+
+    @Test func retryAfterErrorLoadsData() async {
+        let viewModel = RadioViewModel(provider: StubStationsProvider(result: .success(StubRadioProvider.stations)),
+                                       player: makePlayer())
+
+        await viewModel.useCheckScenario(.offline)
+        #expect(viewModel.state == .failed(message: NetworkError.transport(.notConnectedToInternet).userMessage))
+
+        await viewModel.useCheckScenario(.live)
+        #expect(viewModel.state == .loaded(StubRadioProvider.stations))
+    }
+
+    @Test func checkScenariosGiveControlledStates() async {
+        let viewModel = RadioViewModel(provider: StubStationsProvider(result: .success(StubRadioProvider.stations)),
+                                       player: makePlayer())
+
+        await viewModel.useCheckScenario(.empty)
+        #expect(viewModel.state == .empty)
+
+        await viewModel.useCheckScenario(.serverError)
+        #expect(viewModel.state == .failed(message: NetworkError.httpStatus(500).userMessage))
+
+        await viewModel.useCheckScenario(.brokenJSON)
+        #expect(viewModel.state == .failed(message: NetworkError.decoding("").userMessage))
+
+        await viewModel.useCheckScenario(.stations)
         #expect(viewModel.state == .loaded(StubRadioProvider.stations))
     }
 }
