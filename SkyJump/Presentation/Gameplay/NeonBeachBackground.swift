@@ -132,7 +132,7 @@ enum NeonBeachBackground {
 
     // MARK: - Пальми
 
-    private static func drawPalm(in context: inout GraphicsContext, base: CGPoint, height: CGFloat, lean: CGFloat) {
+    static func drawPalm(in context: inout GraphicsContext, base: CGPoint, height: CGFloat, lean: CGFloat) {
         let silhouette = Color(red: 0.08, green: 0.02, blue: 0.14)
         let top = CGPoint(x: base.x + lean, y: base.y - height)
 

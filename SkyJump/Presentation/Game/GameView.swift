@@ -36,6 +36,7 @@ struct GameView: View {
                 }
             }
         }
+        .background(AppBackground())
         .navigationTitle(viewModel.title)
         .navigationBarTitleDisplayMode(.inline)
         .task { await runOnce() }

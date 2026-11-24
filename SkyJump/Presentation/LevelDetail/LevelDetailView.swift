@@ -39,13 +39,7 @@ struct LevelDetailView: View {
             .padding(.horizontal)
             .padding(.bottom, 24)
         }
-        .background(alignment: .top) {
-            Theme.gradient(for: level.difficulty)
-                .opacity(0.16)
-                .frame(height: 280)
-                .mask(LinearGradient(colors: [.black, .clear], startPoint: .top, endPoint: .bottom))
-                .ignoresSafeArea()
-        }
+        .appBackground()
         .navigationTitle(level.name)
         .toolbar {
             Button("Редагувати") { viewModel.edit() }
@@ -100,7 +94,7 @@ struct LevelDetailView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(12)
-        .background(.background.secondary, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .cardStyle(cornerRadius: 18)
         .accessibilityElement(children: .combine)
     }
 
@@ -148,8 +142,8 @@ struct LevelDetailView: View {
                 .transition(statsTransition)
             }
         }
-        .background(.background.secondary, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .cardStyle(cornerRadius: 18)
     }
 
     private var actions: some View {

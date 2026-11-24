@@ -37,15 +37,7 @@ struct LevelListView: View {
             }
         }
         .listStyle(.plain)
-        .scrollContentBackground(.hidden)
-        .background(alignment: .top) {
-            // м'який відблиск заходу сонця під заголовком
-            Theme.sunset
-                .opacity(0.18)
-                .frame(height: 260)
-                .mask(LinearGradient(colors: [.black, .clear], startPoint: .top, endPoint: .bottom))
-                .ignoresSafeArea()
-        }
+        .appBackground()
         .overlay {
             if viewModel.isEmpty {
                 ContentUnavailableView {
@@ -116,7 +108,7 @@ private struct LevelCard: View {
                 .foregroundStyle(.tertiary)
         }
         .padding(12)
-        .background(.background.secondary, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .cardStyle(cornerRadius: 22)
         .contentShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
         .accessibilityElement(children: .combine)
         .accessibilityHint("Відкрити рівень")

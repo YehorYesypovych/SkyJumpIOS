@@ -56,6 +56,7 @@ struct LevelEditorView: View {
                     Text("Однаковий seed дає однакове розташування платформ.")
                 }
             }
+            .appBackground()
             .animation(reduceMotion ? nil : .snappy, value: viewModel.validationMessage)
             .scrollDismissesKeyboard(.interactively)
             .navigationTitle(viewModel.title)

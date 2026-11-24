@@ -17,5 +17,7 @@ struct RootView: View {
                 .tint(Theme.accent)
         }
         .tint(Theme.accent)
+        // уся гра в темному «нічному» стилі, системні елементи підлаштовуються під нього
+        .preferredColorScheme(.dark)
     }
 }
