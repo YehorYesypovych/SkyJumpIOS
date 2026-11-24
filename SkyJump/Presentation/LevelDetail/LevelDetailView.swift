@@ -62,7 +62,8 @@ struct LevelDetailView: View {
 
                 if viewModel.isStatsExpanded {
                     ForEach(viewModel.platformStats, id: \.0) { type, count in
-                        LabeledContent(type.title.capitalized, value: "\(count)")
+                        LabeledContent(type.title.prefix(1).uppercased() + type.title.dropFirst(),
+                                       value: "\(count)")
                             .transition(statsTransition)
                     }
                 }
