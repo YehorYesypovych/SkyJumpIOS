@@ -5,14 +5,28 @@ struct GameplayView: View {
     @State private var viewModel: GameplayViewModel
     /// Радіо застосунку: на паузі притишується, на екрані паузи можна перемкнути станцію.
     let radio: RadioPlayer
+    /// Обрані тема, скін і слід.
+    let cosmetics: CosmeticsSettings
     @State private var clock = FrameClock()
+    @State private var stageTitle: String?          // назва етапу, яку зараз показуємо
+    @State private var lastStageTitle = ""          // останній оголошений етап
     @State private var hasTouched = false
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    init(viewModel: GameplayViewModel, radio: RadioPlayer) {
+    init(viewModel: GameplayViewModel, radio: RadioPlayer, cosmetics: CosmeticsSettings) {
         _viewModel = State(initialValue: viewModel)
         self.radio = radio
+        self.cosmetics = cosmetics
+    }
+
+    private var appearance: GameAppearance {
+        GameAppearance(theme: cosmetics.theme, skin: cosmetics.skin, trail: cosmetics.trail)
+    }
+
+    /// Колір HUD: білий на темних темах, темний на світлій «Класиці».
+    private var hudColor: Color {
+        cosmetics.theme.palette.isDark ? .white : Color(red: 0.12, green: 0.12, blue: 0.18)
     }
 
     var body: some View {
@@ -56,6 +70,9 @@ struct GameplayView: View {
         .onChange(of: viewModel.isPaused) { _, isPaused in
             radio.setDucked(isPaused)
         }
+        .onChange(of: cosmetics.theme.stage(atHeight: Double(viewModel.hud.score)).title) { _, title in
+            announceStage(title)
+        }
         .onChange(of: scenePhase) { _, phase in
             // згорнули застосунок або прийшов дзвінок — гра стає на паузу
             if phase != .active {
@@ -70,7 +87,7 @@ struct GameplayView: View {
         GeometryReader { proxy in
             ZStack(alignment: .top) {
                 // окремий вигляд: лише він читає кадр і перемальовується щокадру
-                GameCanvas(viewModel: viewModel, clock: clock)
+                GameCanvas(viewModel: viewModel, clock: clock, appearance: appearance)
                     .ignoresSafeArea()
                 .contentShape(Rectangle())
                 .gesture(controlGesture(width: proxy.size.width))
@@ -99,6 +116,23 @@ struct GameplayView: View {
             }
             .animation(reduceMotion ? nil : .easeInOut(duration: 0.25), value: viewModel.outcome)
             .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: viewModel.isPaused)
+        }
+    }
+
+    /// Показує назву нового етапу світу на 2 секунди — відчуття, що проходиш шлях угору.
+    private func announceStage(_ title: String) {
+        guard viewModel.hasStarted, title != lastStageTitle else { return }
+        lastStageTitle = title
+        withAnimation(reduceMotion ? nil : .spring(duration: 0.4)) {
+            stageTitle = title
+        }
+        Task {
+            try? await Task.sleep(for: .seconds(2))
+            withAnimation(reduceMotion ? nil : .easeOut(duration: 0.3)) {
+                if stageTitle == title {
+                    stageTitle = nil
+                }
+            }
         }
     }
 
@@ -170,17 +204,27 @@ struct GameplayView: View {
                 .transition(.scale.combined(with: .opacity))
             }
 
+            if let stageTitle {
+                Sticker(text: stageTitle, emoji: cosmetics.theme.emoji,
+                        color: cosmetics.theme.palette.accent, angle: 3)
+                    .padding(.top, 16)
+                    .transition(.scale.combined(with: .opacity))
+            }
+
             if !hasTouched && viewModel.outcome == .playing && !viewModel.isPaused {
                 Sticker(text: "тримай ліво / право", emoji: "👆", color: Theme.electricBlue, angle: -3)
                     .padding(.top, 24)
                     .transition(.scale.combined(with: .opacity))
             }
         }
-        .foregroundStyle(.white)
+        .foregroundStyle(hudColor)
         .padding(.horizontal)
         .padding(.top, 4)
         .animation(reduceMotion ? nil : .spring(duration: 0.35), value: viewModel.hud.jetpackLeft > 0)
         .animation(reduceMotion ? nil : .spring(duration: 0.35), value: hasTouched)
+        .onAppear {
+            lastStageTitle = cosmetics.theme.stages[0].title
+        }
     }
 
     private var pauseOverlay: some View {
@@ -284,12 +328,13 @@ private struct ProgressBar: View {
 private struct GameCanvas: View {
     let viewModel: GameplayViewModel
     let clock: FrameClock
+    let appearance: GameAppearance
 
     var body: some View {
         TimelineView(.animation(minimumInterval: nil, paused: !viewModel.isPlaying)) { timeline in
             // opaque: фон повністю зафарбовує поле, тож системі не треба змішувати його з тим, що під ним
             Canvas(opaque: true) { context, size in
-                GameRenderer.draw(viewModel.frame, in: &context, size: size)
+                GameRenderer.draw(viewModel.frame, appearance: appearance, in: &context, size: size)
             }
             .onChange(of: timeline.date) { _, date in
                 if let deltaTime = clock.advance(to: date) {
@@ -320,17 +365,27 @@ private final class FrameClock {
 // MARK: - Малювання
 
 /// Малює кадр гри: світ (y угору) перетворюється в координати екрана (y униз) з урахуванням камери.
+/// Як виглядає гра: тема світу, скін і слід.
+struct GameAppearance: Equatable {
+    var theme: WorldTheme
+    var skin: PlayerSkin
+    var trail: TrailStyle
+}
+
 private enum GameRenderer {
     static let platformHeight = 14.0
 
-    static func draw(_ frame: GameFrame, in context: inout GraphicsContext, size: CGSize) {
+    static func draw(_ frame: GameFrame, appearance: GameAppearance,
+                     in context: inout GraphicsContext, size: CGSize) {
         let scale = size.width / GameFrame.worldWidth
+        let palette = appearance.theme.palette
 
         func screenY(_ worldY: Double) -> CGFloat {
             size.height - CGFloat(worldY - frame.cameraBottom) * scale
         }
 
-        NeonBeachBackground.draw(in: &context, size: size, cameraBottom: frame.cameraBottom, scale: scale)
+        WorldRenderer.drawBackground(theme: appearance.theme, in: &context, size: size,
+                                     cameraBottom: frame.cameraBottom, scale: scale)
 
         for platform in frame.platforms {
             let rect = CGRect(x: platform.x * scale,
@@ -338,7 +393,7 @@ private enum GameRenderer {
                               width: platform.width * scale,
                               height: platformHeight * scale)
             guard rect.maxY >= -40, rect.minY <= size.height else { continue }
-            drawPlatform(platform, rect: rect, scale: scale, in: &context)
+            drawPlatform(platform, rect: rect, scale: scale, palette: palette, in: &context)
         }
 
         if !frame.pickups.isEmpty {
@@ -351,20 +406,31 @@ private enum GameRenderer {
             }
         }
 
+        // слід за персонажем
+        let trailPoints = frame.trail.map { point in CGPoint(x: point.x * scale, y: screenY(point.y)) }
+        PlayerRenderer.drawTrail(appearance.trail, points: trailPoints, width: frame.playerWidth * scale,
+                                 color: palette.accent, in: &context)
+
         // персонаж біля краю видно з обох боків — так само, як він переходить через край світу
-        let playerX = frame.playerX * scale
-        let worldWidth = GameFrame.worldWidth * scale
-        let halfWidth = frame.playerWidth * scale / 2
-        for offset in [-worldWidth, 0, worldWidth] where playerX + offset + halfWidth > 0 && playerX + offset - halfWidth < size.width {
-            drawPlayer(frame, centerX: playerX + offset, feetY: screenY(frame.playerY), scale: scale, in: &context)
+        let playerX: CGFloat = frame.playerX * scale
+        let worldWidth: CGFloat = GameFrame.worldWidth * scale
+        let halfWidth: CGFloat = frame.playerWidth * scale / 2
+        let flicker: CGFloat = CGFloat(abs(frame.playerY).truncatingRemainder(dividingBy: 12)) / 12
+        for offset in [-worldWidth, 0, worldWidth] {
+            let centerX = playerX + offset
+            guard centerX + halfWidth > 0, centerX - halfWidth < size.width else { continue }
+            let pose = PlayerRenderer.Pose(centerX: centerX, feetY: screenY(frame.playerY),
+                                           width: halfWidth * 2, isFalling: frame.isFalling,
+                                           hasJetpack: frame.jetpackLeft > 0, flicker: flicker)
+            PlayerRenderer.draw(skin: appearance.skin, pose: pose, in: &context)
         }
     }
 
     // MARK: Платформи
 
-    private static func drawPlatform(_ platform: GameFrame.PlatformSprite, rect: CGRect,
-                                     scale: CGFloat, in context: inout GraphicsContext) {
-        let color = Theme.color(for: platform.type)
+    private static func drawPlatform(_ platform: GameFrame.PlatformSprite, rect: CGRect, scale: CGFloat,
+                                     palette: ThemePalette, in context: inout GraphicsContext) {
+        let color = palette.color(for: platform.type)
         let opacity = platform.isBroken ? 0.25 : 1
         // тінь — просто зсунута темна смужка: без розмиття, яке дорого рахувати щокадру
         let shadow = rect.offsetBy(dx: 0, dy: 3 * scale)
@@ -396,7 +462,7 @@ private enum GameRenderer {
             }
             context.stroke(coil, with: .color(.white), lineWidth: 2 * scale)
             let cap = CGRect(x: rect.midX - 9 * scale, y: baseY - 15 * scale, width: 18 * scale, height: 4 * scale)
-            context.fill(Path(roundedRect: cap, cornerRadius: 2 * scale), with: .color(Theme.neonPink))
+            context.fill(Path(roundedRect: cap, cornerRadius: 2 * scale), with: .color(palette.accent))
         case .breakable:
             // ціла — одна тонка тріщина; після першого стрибку — глибокі тріщини на всю платформу
             var crack = Path()
@@ -437,63 +503,6 @@ private enum GameRenderer {
         context.fill(Path(ellipseIn: glow), with: .color(Theme.neonMint.opacity(0.35)))
         context.draw(rocket, at: CGPoint(x: bottom.x, y: bottom.y - 20 * scale))
     }
-
-    // MARK: Персонаж
-
-    private static func drawPlayer(_ frame: GameFrame, centerX: CGFloat, feetY: CGFloat,
-                                   scale: CGFloat, in context: inout GraphicsContext) {
-        let width = frame.playerWidth * scale
-        let height = width * 1.1
-        let body = CGRect(x: centerX - width / 2, y: feetY - height, width: width, height: height)
-        let hasJetpack = frame.jetpackLeft > 0
-
-        if hasJetpack {
-            // рюкзак-джетпак за спиною і полум'я, що «тремтить» від висоти польоту
-            let pack = CGRect(x: body.minX - width * 0.22, y: body.minY + height * 0.25,
-                              width: width * 0.3, height: height * 0.55)
-            context.fill(Path(roundedRect: pack, cornerRadius: width * 0.08), with: .color(Color(white: 0.82)))
-            let flicker = CGFloat(abs(frame.playerY).truncatingRemainder(dividingBy: 12)) / 12
-            var flame = Path()
-            flame.move(to: CGPoint(x: pack.minX + 2, y: pack.maxY))
-            flame.addLine(to: CGPoint(x: pack.midX, y: pack.maxY + height * (0.45 + 0.25 * flicker)))
-            flame.addLine(to: CGPoint(x: pack.maxX - 2, y: pack.maxY))
-            flame.closeSubpath()
-            context.fill(flame, with: .linearGradient(Gradient(colors: [Theme.sunYellow, Theme.sunsetOrange, .clear]),
-                                                      startPoint: CGPoint(x: pack.midX, y: pack.maxY),
-                                                      endPoint: CGPoint(x: pack.midX, y: pack.maxY + height * 0.7)))
-        }
-
-        // тіло — м'який «блоб» з градієнтом і темним контуром, щоб не губився на тлі заходу сонця
-        let bodyShape = Path(roundedRect: body, cornerRadius: width * 0.42)
-        context.fill(bodyShape,
-                     with: .linearGradient(Gradient(colors: [Theme.sunYellow, Theme.sunsetOrange]),
-                                           startPoint: CGPoint(x: body.midX, y: body.minY),
-                                           endPoint: CGPoint(x: body.midX, y: body.maxY)))
-        context.stroke(bodyShape, with: .color(Theme.night.opacity(0.85)), lineWidth: 2 * scale)
-
-        // окуляри: дивляться вниз, коли персонаж падає
-        let glassesY = body.minY + height * (frame.isFalling ? 0.38 : 0.28)
-        let lens = width * 0.3
-        let bridge = CGRect(x: body.midX - width * 0.36, y: glassesY + lens * 0.25,
-                            width: width * 0.72, height: lens * 0.18)
-        context.fill(Path(bridge), with: .color(.black))
-        for side in [-1.0, 1.0] {
-            let lensRect = CGRect(x: body.midX + CGFloat(side) * width * 0.2 - lens / 2, y: glassesY,
-                                  width: lens, height: lens * 0.72)
-            context.fill(Path(roundedRect: lensRect, cornerRadius: lens * 0.25), with: .color(.black))
-            let shine = CGRect(x: lensRect.minX + lens * 0.18, y: lensRect.minY + lens * 0.14,
-                               width: lens * 0.3, height: lens * 0.12)
-            context.fill(Path(roundedRect: shine, cornerRadius: lens * 0.06), with: .color(Theme.neonPink.opacity(0.9)))
-        }
-
-        // усмішка
-        var smile = Path()
-        smile.move(to: CGPoint(x: body.midX - width * 0.12, y: glassesY + lens * 1.05))
-        smile.addQuadCurve(to: CGPoint(x: body.midX + width * 0.12, y: glassesY + lens * 1.05),
-                           control: CGPoint(x: body.midX, y: glassesY + lens * 1.35))
-        context.stroke(smile, with: .color(.black.opacity(0.75)),
-                       style: StrokeStyle(lineWidth: 1.8 * scale, lineCap: .round))
-    }
 }
 
 #Preview {
@@ -504,6 +513,7 @@ private enum GameRenderer {
                                                   library: library,
                                                   scoreStore: InMemoryScoreStore(),
                                                   navigator: router),
-                     radio: .preview())
+                     radio: .preview(),
+                     cosmetics: CosmeticsSettings(defaults: UserDefaults(suiteName: "preview.cosmetics") ?? .standard))
     }
 }

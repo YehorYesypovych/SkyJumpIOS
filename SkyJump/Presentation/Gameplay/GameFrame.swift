@@ -20,12 +20,19 @@ struct GameFrame: Equatable {
         let y: Double          // низ
     }
 
+    /// Точка сліду персонажа (центр тіла) у світі гри.
+    struct TrailPoint: Equatable {
+        let x: Double
+        let y: Double
+    }
+
     var platforms: [PlatformSprite] = []
     var pickups: [PickupSprite] = []
     var playerX: Double = GameConfig.worldWidth / 2   // центр гравця
     var playerY: Double = 0                           // рівень «ніг»
     var playerWidth: Double = GameConfig.playerWidth
     var isFalling = false
+    var trail: [TrailPoint] = []   // від найстарішої до найновішої
     var jetpackLeft: Double = 0    // 0…1 — скільки залишилось джетпака (0 — немає)
     var cameraBottom: Double = 0   // висота світу на нижньому краю екрана
     var score = 0

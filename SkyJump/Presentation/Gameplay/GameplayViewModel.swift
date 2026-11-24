@@ -40,6 +40,11 @@ final class GameplayViewModel {
     @ObservationIgnored let levelID: LevelPreset.ID
     @ObservationIgnored private weak var navigator: AppNavigating?
     @ObservationIgnored private var input: Double = 0
+    @ObservationIgnored private var trail: [GameFrame.TrailPoint] = []
+
+    /// Скільки точок сліду пам'ятати і як часто їх ставити (одиниці світу між точками).
+    static let trailLength = 16
+    static let trailSpacing = 7.0
     @ObservationIgnored private let jetpackDuration: Double
 
     init(levelID: LevelPreset.ID,
@@ -77,6 +82,7 @@ final class GameplayViewModel {
         isPaused = false
         isNewRecord = false
         outcome = .playing
+        trail = []
         hasStarted = round.session != nil
         updateFrame()
     }
@@ -137,12 +143,35 @@ final class GameplayViewModel {
 
     /// Оновлює кадр і, лише якщо щось змінилось на екрані, — HUD.
     private func updateFrame() {
+        updateTrail()
         frame = makeFrame()
         let newHUD = HUDState(score: frame.score,
                               progress: (frame.progress * 100).rounded() / 100,
                               jetpackLeft: (frame.jetpackLeft * 50).rounded() / 50)
         if newHUD != hud {
             hud = newHUD
+        }
+    }
+
+    /// Додає точку сліду, коли персонаж відлетів достатньо далеко від попередньої.
+    private func updateTrail() {
+        guard let player = round.session?.player else {
+            trail = []
+            return
+        }
+        let point = GameFrame.TrailPoint(x: player.position.x,
+                                         y: player.position.y + player.width * 0.55)
+        if let last = trail.last {
+            // перехід через край світу — слід не тягнеться через увесь екран
+            if abs(point.x - last.x) > GameConfig.worldWidth / 2 {
+                trail = []
+            } else if hypot(point.x - last.x, point.y - last.y) < Self.trailSpacing {
+                return
+            }
+        }
+        trail.append(point)
+        if trail.count > Self.trailLength {
+            trail.removeFirst(trail.count - Self.trailLength)
         }
     }
 
@@ -173,6 +202,7 @@ final class GameplayViewModel {
             playerY: player.position.y,
             playerWidth: player.width,
             isFalling: player.isFalling,
+            trail: trail,
             jetpackLeft: session.hasJetpack ? session.jetpackTimeLeft / jetpackDuration : 0,
             // камера не опускається: тримається за найвищою точкою гравця
             cameraBottom: cameraBottom,

@@ -27,7 +27,8 @@ struct ScreenFactory {
                                                       library: dependencies.library,
                                                       scoreStore: dependencies.scoreStore,
                                                       navigator: navigator),
-                         radio: dependencies.radio)
+                         radio: dependencies.radio,
+                         cosmetics: dependencies.cosmetics)
         case .game(let id):
             GameView(viewModel: GameViewModel(levelID: id,
                                               library: dependencies.library,
