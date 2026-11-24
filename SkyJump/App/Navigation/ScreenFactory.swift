@@ -48,7 +48,9 @@ struct ScreenFactory {
         case .demo:
             DemoView(viewModel: dependencies.makeDemoViewModel())
         case .leaderboard:
-            LeaderboardView(viewModel: LeaderboardViewModel(provider: dependencies.leaderboard))
+            LeaderboardView(viewModel: LeaderboardViewModel(provider: dependencies.leaderboard,
+                                                            profile: dependencies.profile,
+                                                            reporter: dependencies.scoreReporter as? LeaderboardScoreReporter))
         case .customize:
             CustomizeView(settings: dependencies.cosmetics)
         case .radio:

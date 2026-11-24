@@ -9,3 +9,6 @@ DerivedData/
 *.cer
 *.mobileprovision
 Secrets.xcconfig
+
+# Дані сервера таблиці лідерів
+server/data/
