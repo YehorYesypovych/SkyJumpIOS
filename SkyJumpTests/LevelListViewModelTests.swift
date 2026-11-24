@@ -13,8 +13,10 @@ struct LevelListViewModelTests {
         viewModel.open(library.levels[0].id)
         viewModel.create()
         viewModel.openDemo()
+        viewModel.openRadio()
+        viewModel.openCustomize()
 
-        #expect(navigator.calls == ["showLevel", "presentCreateLevel", "showDemo"])
+        #expect(navigator.calls == ["showLevel", "presentCreateLevel", "showDemo", "showRadio", "showCustomize"])
     }
 
     @Test func deleteRemovesLevelFromLibrary() {

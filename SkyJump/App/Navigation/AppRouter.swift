@@ -14,11 +14,27 @@ final class AppRouter: AppNavigating {
     }
 
     func startGame(_ id: LevelPreset.ID) {
+        path.append(.play(id))
+    }
+
+    func startEndless() {
+        path.append(.endless)
+    }
+
+    func simulateLevel(_ id: LevelPreset.ID) {
         path.append(.game(id))
     }
 
     func showDemo() {
         path.append(.demo)
+    }
+
+    func showRadio() {
+        path.append(.radio)
+    }
+
+    func showCustomize() {
+        path.append(.customize)
     }
 
     func pop() {

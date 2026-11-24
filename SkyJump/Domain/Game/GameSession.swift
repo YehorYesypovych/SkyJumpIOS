@@ -8,11 +8,31 @@ final class GameSession {
     private(set) var maxHeight: Double = 0
     private(set) var brokenPlatformsCount = 0
     private(set) var elapsedTime: Double = 0
+    private(set) var outcome: GameOutcome = .playing
+    private(set) var pickups: [Pickup]
+    /// Скільки секунд ще працює джетпак (0 — не працює).
+    private(set) var jetpackTimeLeft: Double = 0
+    /// Висота верхньої платформи рівня на момент старту (0 — платформ немає).
+    let topHeight: Double
     private let rules: GameRules
     private let landingStrategies: [PlatformType: LandingStrategy]
     private var observers: [WeakObserver] = []
+    /// Режим справжньої гри: досягти висоти верхньої платформи — перемога.
+    /// У симуляції вимкнено, тож поведінка демо-сценарію не змінюється.
+    private let completesAtTop: Bool
+    /// Ширина «ніг» гравця для приземлення. 0 — лише центр (як у симуляції),
+    /// у грі — частина ширини персонажа, щоб приземлення збігалося з тим, що видно на екрані.
+    private let footWidth: Double
 
     var score: Int { Int(maxHeight) }
+
+    var hasJetpack: Bool { jetpackTimeLeft > 0 }
+
+    /// Прогрес до верхньої платформи: 0…1.
+    var progress: Double {
+        guard topHeight > 0 else { return 0 }
+        return min(maxHeight / topHeight, 1)
+    }
 
     /// Найвища платформа — Optional, бо масив може бути порожнім.
     var highestPlatform: Platform? {
@@ -20,11 +40,19 @@ final class GameSession {
     }
 
     /// landingStrategies: nil — стандартний набір за правилами rules.
+    /// completesAtTop: true — гра закінчується перемогою на висоті верхньої платформи.
     init(playerName: String, platforms: [Platform],
          rules: GameRules = .standard,
          landingStrategies: [PlatformType: LandingStrategy]? = nil,
-         observers: [GameEventObserver] = []) {
+         observers: [GameEventObserver] = [],
+         completesAtTop: Bool = false,
+         footWidth: Double = 0,
+         pickups: [Pickup] = []) {
         self.platforms = platforms
+        self.pickups = pickups
+        self.topHeight = platforms.map { $0.position.y }.max() ?? 0
+        self.completesAtTop = completesAtTop
+        self.footWidth = max(footWidth, 0)
         self.rules = rules
         self.landingStrategies = landingStrategies ?? LandingStrategies.standard(rules: rules)
         self.observers = observers.map { WeakObserver($0) }
@@ -49,7 +77,7 @@ final class GameSession {
 
     /// Один кадр гри.
     func step(deltaTime: Double, input: Double = 0) {
-        guard player.isAlive else { return }
+        guard player.isAlive, outcome == .playing else { return }
         elapsedTime += deltaTime
 
         player.move(direction: input)
@@ -57,28 +85,42 @@ final class GameSession {
             platforms[index].update(deltaTime: deltaTime)
         }
 
+        if hasJetpack {
+            jetpackTimeLeft = max(jetpackTimeLeft - deltaTime, 0)
+            player.fly(upwardSpeed: rules.jetpackVelocity)
+        }
+
         let previousY = player.position.y
         player.update(deltaTime: deltaTime)
 
-        // Приземлення можливе лише під час падіння
-        if player.isFalling, let index = landingPlatformIndex(previousY: previousY) {
+        // Приземлення можливе лише під час падіння (з джетпаком гравець летить крізь платформи)
+        if !hasJetpack, player.isFalling, let index = landingPlatformIndex(previousY: previousY) {
             handleLanding(onPlatformAt: index)
         }
+        collectPickups()
 
         if player.position.y > maxHeight {
             maxHeight = player.position.y
         }
+
+        if completesAtTop, topHeight > 0, maxHeight >= topHeight {
+            outcome = .won
+            emit(.levelCompleted)
+            return
+        }
+
         removePlatformsBelowScreen()
 
         if player.position.y < maxHeight - rules.screenHeight {
             player.die()
+            outcome = .lost
             emit(.playerFell)
         }
     }
 
     /// Запуск симуляції на заданий час (поки гравець живий).
     func run(duration: Double, deltaTime: Double = 1.0 / 60.0) {
-        while elapsedTime < duration && player.isAlive {
+        while elapsedTime < duration && player.isAlive && outcome == .playing {
             step(deltaTime: deltaTime)
         }
         emit(.finished)
@@ -104,9 +146,21 @@ final class GameSession {
     private func landingPlatformIndex(previousY: Double) -> Int? {
         platforms.firstIndex { platform in
             !platform.isBroken
-                && platform.contains(x: player.position.x)
+                && isStanding(on: platform)
                 && previousY >= platform.position.y
                 && player.position.y <= platform.position.y
+        }
+    }
+
+    /// Чи потрапляють «ноги» гравця на платформу по горизонталі.
+    private func isStanding(on platform: Platform) -> Bool {
+        guard footWidth > 0 else { return platform.contains(x: player.position.x) }
+        let half = footWidth / 2
+        // біля краю світу ноги частково з іншого боку екрана — перевіряємо і «копії» платформи
+        let worldWidth = GameConfig.worldWidth
+        return [-worldWidth, 0, worldWidth].contains { offset in
+            let left = platform.position.x + offset
+            return player.position.x + half >= left && player.position.x - half <= left + platform.width
         }
     }
 
@@ -136,6 +190,25 @@ final class GameSession {
         if removed > 0 {
             emit(.platformsRemoved(count: removed))
         }
+        pickups.removeAll { $0.position.y < bottomEdge }
+    }
+
+    private func collectPickups() {
+        for index in pickups.indices where !pickups[index].isCollected {
+            guard pickups[index].isTouched(byPlayerAt: player.position.x, feetY: player.position.y) else { continue }
+            pickups[index].collect()
+            switch pickups[index].kind {
+            case .jetpack:
+                jetpackTimeLeft = rules.jetpackDuration
+                emit(.jetpackPicked)
+            }
+        }
+    }
+
+    /// Додає нові платформи й бонуси над гравцем (нескінченний режим).
+    func extendLevel(platforms newPlatforms: [Platform], pickups newPickups: [Pickup]) {
+        platforms.append(contentsOf: newPlatforms)
+        pickups.append(contentsOf: newPickups)
     }
 
     private func emit(_ event: GameEvent) {

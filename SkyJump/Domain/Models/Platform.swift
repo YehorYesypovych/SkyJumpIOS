@@ -8,6 +8,8 @@ struct Platform: GameObject {
     let width: Double
     let type: PlatformType
     private(set) var isBroken = false
+    /// Тріснула після першого стрибку (ламка платформа в грі витримує один стрибок).
+    private(set) var isCracked = false
     private var direction: Double = 1   // напрям руху для рухомої платформи
 
     init(id: Int, x: Double, y: Double, type: PlatformType = .normal,
@@ -26,6 +28,10 @@ struct Platform: GameObject {
         if position.x <= 0 || position.x + width >= GameConfig.worldWidth {
             direction *= -1
         }
+    }
+
+    mutating func crack() {
+        isCracked = true
     }
 
     mutating func breakPlatform() {

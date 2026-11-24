@@ -6,8 +6,15 @@ struct AppDependencies {
     let levelProvider: any LevelProviding
     let simulator: any GameSimulating
     let scoreStore: any ScoreStoring
+    /// Рекорд нескінченного режиму — окремо від рекордів рівнів.
+    let endlessScores: any ScoreStoring
     /// Бібліотека рівнів «Мої рівні» — спільна для всіх екранів.
     let library: LevelLibrary
+    /// Радіо — одне на весь застосунок; каталог станцій — через протокол.
+    let radio: RadioPlayer
+    let radioProvider: any RadioStationProviding
+    /// Тема, скін і слід гравця.
+    let cosmetics: CosmeticsSettings
 
     /// Залежності для реального запуску застосунку.
     /// Аргумент запуску `-randomLevel` (Edit Scheme → Run → Arguments) вмикає випадковий рівень.
@@ -20,7 +27,11 @@ struct AppDependencies {
         return AppDependencies(levelProvider: levelProvider,
                                simulator: GameSimulationService(observers: [ConsoleEventLogger()]),
                                scoreStore: UserDefaultsScoreStore(defaults: .standard),
-                               library: LevelLibrary())
+                               endlessScores: UserDefaultsScoreStore(defaults: .standard, key: "endlessBestScore"),
+                               library: LevelLibrary(),
+                               radio: RadioPlayer(streamer: AVPlayerStreamer()),
+                               radioProvider: RadioBrowserClient(),
+                               cosmetics: CosmeticsSettings())
     }
 
     func makeDemoViewModel() -> DemoViewModel {

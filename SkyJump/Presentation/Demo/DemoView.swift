@@ -35,8 +35,10 @@ struct DemoView: View {
                     .font(.system(.footnote, design: .monospaced))
             }
             .listStyle(.plain)
+            .scrollContentBackground(.hidden)
         }
         .padding()
+        .background(AppBackground())
         .navigationTitle("Демо-сценарій")
     }
 }

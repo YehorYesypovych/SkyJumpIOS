@@ -31,6 +31,22 @@ struct BreakLanding: LandingStrategy {
     }
 }
 
+/// Ламка платформа, що витримує один стрибок: перше приземлення — звичайний стрибок
+/// і тріщина, друге — платформа розсипається, гравець падає далі.
+struct CrumbleLanding: LandingStrategy {
+    let velocity: Double
+
+    func land(player: Player, on platform: inout Platform) -> LandingOutcome {
+        guard platform.isCracked else {
+            platform.crack()
+            player.jump(velocity: velocity)
+            return .jumped(velocity: velocity)
+        }
+        platform.breakPlatform()
+        return .broke
+    }
+}
+
 /// Набори стратегій для типів платформ.
 enum LandingStrategies {
     /// Стандартний набір: звичайний стрибок і посилений стрибок з пружини за правилами rules.
@@ -42,5 +58,13 @@ enum LandingStrategies {
             .spring: BounceLanding(velocity: rules.jumpVelocity * rules.springMultiplier),
             .breakable: BreakLanding()
         ]
+    }
+
+    /// Набір для справжньої гри: ламка платформа витримує один стрибок.
+    /// У симуляції лишається стандартний набір, тож демо-сценарій не змінюється.
+    static func gameplay(rules: GameRules = .standard) -> [PlatformType: LandingStrategy] {
+        var strategies = standard(rules: rules)
+        strategies[.breakable] = CrumbleLanding(velocity: rules.jumpVelocity)
+        return strategies
     }
 }

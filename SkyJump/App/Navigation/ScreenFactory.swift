@@ -7,7 +7,13 @@ struct ScreenFactory {
 
     func makeLevelList() -> some View {
         LevelListView(viewModel: LevelListViewModel(library: dependencies.library,
-                                                    navigator: navigator))
+                                                    navigator: navigator,
+                                                    endlessScores: dependencies.endlessScores))
+            .safeAreaInset(edge: .bottom) {
+                MiniPlayerBar(player: dependencies.radio) { [navigator] in
+                    navigator.showRadio()
+                }
+            }
     }
 
     @ViewBuilder
@@ -17,6 +23,21 @@ struct ScreenFactory {
             LevelDetailView(viewModel: LevelDetailViewModel(levelID: id,
                                                             library: dependencies.library,
                                                             navigator: navigator))
+        case .play(let id):
+            GameplayView(viewModel: GameplayViewModel(levelID: id,
+                                                      library: dependencies.library,
+                                                      scoreStore: dependencies.scoreStore,
+                                                      navigator: navigator),
+                         radio: dependencies.radio,
+                         cosmetics: dependencies.cosmetics)
+        case .endless:
+            GameplayView(viewModel: GameplayViewModel(mode: .endless,
+                                                      library: dependencies.library,
+                                                      scoreStore: dependencies.scoreStore,
+                                                      endlessScores: dependencies.endlessScores,
+                                                      navigator: navigator),
+                         radio: dependencies.radio,
+                         cosmetics: dependencies.cosmetics)
         case .game(let id):
             GameView(viewModel: GameViewModel(levelID: id,
                                               library: dependencies.library,
@@ -25,6 +46,11 @@ struct ScreenFactory {
                                               navigator: navigator))
         case .demo:
             DemoView(viewModel: dependencies.makeDemoViewModel())
+        case .customize:
+            CustomizeView(settings: dependencies.cosmetics)
+        case .radio:
+            RadioView(viewModel: RadioViewModel(provider: dependencies.radioProvider,
+                                                player: dependencies.radio))
         }
     }
 

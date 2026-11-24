@@ -77,4 +77,35 @@ struct LevelDetailViewModelTests {
 
         #expect(navigator.calls == ["presentEditLevel", "startGame"])
     }
+
+    @Test func simulationAsksNavigator() {
+        let library = LevelLibrary()
+        let navigator = SpyNavigator()
+        let viewModel = LevelDetailViewModel(levelID: library.levels[0].id, library: library, navigator: navigator)
+
+        viewModel.simulate()
+
+        #expect(navigator.calls == ["simulateLevel"])
+    }
+}
+
+@MainActor
+struct LevelDetailStatsCacheTests {
+
+    @Test func statsChangeOnlyWithGenerationParameters() {
+        let library = LevelLibrary()
+        let navigator = SpyNavigator()
+        var level = library.levels[1]
+        let viewModel = LevelDetailViewModel(levelID: level.id, library: library, navigator: navigator)
+        let initial = viewModel.platformStats.map(\.1).reduce(0, +)
+        #expect(initial == level.platformCount)
+
+        level.name = "Інша назва"            // не впливає на генерацію — береться збережений результат
+        library.update(level)
+        #expect(viewModel.platformStats.map(\.1).reduce(0, +) == level.platformCount)
+
+        level.platformCount = 12             // впливає — рівень перераховується
+        library.update(level)
+        #expect(viewModel.platformStats.map(\.1).reduce(0, +) == 12)
+    }
 }

@@ -39,10 +39,42 @@ final class SpyNavigator: AppNavigating {
 
     func showLevel(_ id: LevelPreset.ID) { calls.append("showLevel") }
     func startGame(_ id: LevelPreset.ID) { calls.append("startGame") }
+    func startEndless() { calls.append("startEndless") }
+    func simulateLevel(_ id: LevelPreset.ID) { calls.append("simulateLevel") }
     func showDemo() { calls.append("showDemo") }
+    func showRadio() { calls.append("showRadio") }
+    func showCustomize() { calls.append("showCustomize") }
     func pop() { calls.append("pop") }
     func popToRoot() { calls.append("popToRoot") }
     func presentCreateLevel() { calls.append("presentCreateLevel") }
     func presentEditLevel(_ id: LevelPreset.ID) { calls.append("presentEditLevel") }
     func dismissSheet() { calls.append("dismissSheet") }
+}
+
+/// Запам'ятовує, що просили програти; стан повідомляє одразу.
+@MainActor
+final class SpyStreamer: AudioStreaming {
+    var onStateChange: ((StreamState) -> Void)?
+    var volume: Float = 1
+    private(set) var playedURLs: [URL] = []
+    private(set) var stopCount = 0
+
+    func play(url: URL) {
+        playedURLs.append(url)
+        onStateChange?(.playing)
+    }
+
+    func stop() {
+        stopCount += 1
+        onStateChange?(.idle)
+    }
+}
+
+/// Каталог радіо з наперед заданою відповіддю або помилкою.
+struct StubStationsProvider: RadioStationProviding {
+    var result: Result<[RadioStation], Error>
+
+    func stations(for genres: [RadioGenre]) async throws -> [RadioStation] {
+        try result.get()
+    }
 }
